@@ -1,87 +1,24 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>هاب هوش مصنوعی من</title>
-  <meta name="theme-color" content="#1C1B1F" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Vazirmatn:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-
-  <!-- هدر بالای صفحه: شامل عنوان و دکمه تنظیمات -->
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-dot"></span>
-      <h1>هاب هوش مصنوعی</h1>
-    </div>
-    <button id="settingsBtn" class="icon-btn" aria-label="تنظیمات">⚙</button>
-  </header>
-
-  <!-- انتخاب‌گر مدل: شبیه دکمه‌های پیش‌تنظیم رادیو -->
-  <nav class="model-switcher" id="modelSwitcher">
-    <button class="preset" data-provider="anthropic">
-      <span class="status-dot" data-status="anthropic"></span>
-      Claude
-    </button>
-    <button class="preset" data-provider="openai">
-      <span class="status-dot" data-status="openai"></span>
-      GPT
-    </button>
-    <button class="preset" data-provider="google">
-      <span class="status-dot" data-status="google"></span>
-      Gemini
-    </button>
-  </nav>
-
-  <!-- ناحیه‌ی نمایش پیام‌های چت -->
-  <main class="chat-area" id="chatArea">
-    <div class="empty-state" id="emptyState">
-      <p>یک مدل رو انتخاب کن، کلید API‌اش رو در تنظیمات وارد کن، و شروع کن به چت.</p>
-    </div>
-  </main>
-
-  <!-- نوار پایین برای نوشتن پیام -->
-  <footer class="composer">
-    <textarea id="userInput" placeholder="پیامت رو بنویس..." rows="1"></textarea>
-    <button id="sendBtn" class="send-btn" aria-label="ارسال">➤</button>
-  </footer>
-
-  <!-- پنل تنظیمات (کشویی از پایین) -->
-  <div class="settings-overlay" id="settingsOverlay">
-    <div class="settings-panel">
-      <div class="settings-header">
-        <h2>تنظیمات و کلیدهای API</h2>
-        <button id="closeSettings" class="icon-btn">✕</button>
-      </div>
-
-      <div class="settings-body">
-        <div class="key-group">
-          <label for="anthropicKey">کلید Anthropic (Claude)</label>
-          <input type="password" id="anthropicKey" placeholder="sk-ant-..." class="mono" />
-        </div>
-
-        <div class="key-group">
-          <label for="openaiKey">کلید OpenAI (GPT)</label>
-          <input type="password" id="openaiKey" placeholder="sk-..." class="mono" />
-        </div>
-
-        <div class="key-group">
-          <label for="googleKey">کلید Google (Gemini)</label>
-          <input type="password" id="googleKey" placeholder="AIza..." class="mono" />
-        </div>
-
-        <button id="saveKeys" class="save-btn">ذخیره کلیدها</button>
-        <p class="hint">کلیدها داخل همین مرورگر ذخیره می‌شن (localStorage). درخواست‌ها از طریق یک سرور واسط محلی (proxy.py) روی سیستم خودت رد می‌شن تا مشکل CORS مرورگر حل بشه — قبل از چت، مطمئن شو proxy.py رو اجرا کردی.</p>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
-</body>
-</html>
+{
+  "name": "هاب هوش مصنوعی من",
+  "short_name": "AI Hub",
+  "description": "اپلیکیشنی برای چت با چند مدل هوش مصنوعی مختلف با کلید API خودت",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1C1B1F",
+  "theme_color": "#1C1B1F",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
