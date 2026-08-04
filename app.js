@@ -198,9 +198,9 @@ userInput.addEventListener('input', () => {
 });
 
 // ---------- ۸. تابع‌های اختصاصی هر ارائه‌دهنده‌ی هوش مصنوعی ----------
-// همه از یک سرور واسط محلی (proxy.py) عبور می‌کنن تا مشکل CORS مرورگر حل بشه.
-// وقتی روی اینترنت منتشرش کردی، این آدرس رو با آدرس proxy واقعی‌ات عوض کن.
-const PROXY_URL = 'http://localhost:8787';
+// همه از یک سرور واسط آنلاین (Cloudflare Worker) عبور می‌کنن تا مشکل CORS مرورگر حل بشه.
+// این یعنی دیگه لازم نیست هیچ ترمینالی روی کامپیوترت باز باشه.
+const PROXY_URL = 'https://flat-math-35b6.mahmoodgh20471.workers.dev';
 
 // تابع مشترک: پیام رو به آدرس /proxy/<provider> می‌فرسته
 async function callProxy(provider, apiKey, payload) {
@@ -212,7 +212,7 @@ async function callProxy(provider, apiKey, payload) {
       body: JSON.stringify({ apiKey, payload })
     });
   } catch (e) {
-    throw new Error('نمی‌تونم به proxy وصل بشم. مطمئن شو proxy.py رو با "python proxy.py" اجرا کردی.');
+    throw new Error('نمی‌تونم به proxy وصل بشم. اتصال اینترنتت رو چک کن.');
   }
 
   const data = await res.json();
