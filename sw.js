@@ -1,324 +1,38 @@
-/* ---------- توکن‌های طراحی (Design Tokens) ---------- */
-:root {
-  --bg: #1C1B1F;
-  --bg-elevated: #26242B;
-  --text: #F5F1EA;
-  --text-dim: #8A8792;
-  --accent: #5B5FEF;
-  --accent-soft: rgba(91, 95, 239, 0.15);
-  --amber: #E8A33D;
-  --green: #4CAF7D;
-  --border: rgba(245, 241, 234, 0.08);
-  --radius: 18px;
-  --font-display: 'Space Grotesk', 'Vazirmatn', sans-serif;
-  --font-body: 'Vazirmatn', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-}
+// Service Worker ساده: فایل‌های اصلی رو کش می‌کنه
+// تا اپ حتی با اینترنت ضعیف هم باز بشه (چت کردن البته نیاز به اینترنت داره)
 
-* { box-sizing: border-box; }
+const CACHE_NAME = 'ai-hub-v1';
+const FILES_TO_CACHE = [
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+];
 
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-body);
-  -webkit-tap-highlight-color: transparent;
-}
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE))
+  );
+  self.skipWaiting();
+});
 
-body {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  overflow: hidden;
-}
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
 
-/* ---------- هدر ---------- */
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 18px 8px;
-  flex-shrink: 0;
-}
+self.addEventListener('fetch', (event) => {
+  // فقط برای فایل‌های خود اپ کش استفاده کن، درخواست‌های API رو دست نزن
+  if (event.request.url.includes('/api/') || event.request.method !== 'GET') return;
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 12px var(--accent);
-}
-
-.brand h1 {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-.icon-btn {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
-}
-
-.icon-btn:active { transform: scale(0.92); }
-
-/* ---------- انتخاب‌گر مدل: امضای بصری برنامه ---------- */
-.model-switcher {
-  display: flex;
-  gap: 8px;
-  padding: 8px 18px 14px;
-  flex-shrink: 0;
-  overflow-x: auto;
-}
-
-.preset {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  padding: 9px 16px;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.18s ease;
-}
-
-.preset.active {
-  color: var(--text);
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--text-dim);
-  opacity: 0.5;
-}
-
-.status-dot.ready {
-  background: var(--green);
-  opacity: 1;
-  box-shadow: 0 0 6px var(--green);
-}
-
-/* ---------- ناحیه چت ---------- */
-.chat-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 18px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.empty-state {
-  margin: auto;
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 14px;
-  max-width: 260px;
-  line-height: 1.8;
-}
-
-.msg {
-  max-width: 82%;
-  padding: 12px 16px;
-  border-radius: var(--radius);
-  line-height: 1.7;
-  font-size: 15px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.msg.user {
-  align-self: flex-end;
-  background: var(--accent);
-  color: #fff;
-  border-bottom-left-radius: 6px;
-}
-
-.msg.assistant {
-  align-self: flex-start;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-bottom-right-radius: 6px;
-}
-
-.msg.error {
-  align-self: flex-start;
-  background: rgba(232, 90, 90, 0.12);
-  border: 1px solid rgba(232, 90, 90, 0.35);
-  color: #f0a0a0;
-}
-
-.msg.loading {
-  align-self: flex-start;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-/* ---------- نوار پیام ---------- */
-.composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
-  background: var(--bg);
-  flex-shrink: 0;
-}
-
-.composer textarea {
-  flex: 1;
-  resize: none;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 16px;
-  padding: 12px 16px;
-  font-family: var(--font-body);
-  font-size: 15px;
-  max-height: 120px;
-}
-
-.composer textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.send-btn {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  font-size: 17px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.send-btn:active { transform: scale(0.9); }
-.send-btn:disabled { opacity: 0.4; }
-
-/* ---------- پنل تنظیمات ---------- */
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: flex-end;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  z-index: 10;
-}
-
-.settings-overlay.open {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.settings-panel {
-  background: var(--bg-elevated);
-  width: 100%;
-  border-radius: 24px 24px 0 0;
-  padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
-  max-height: 82vh;
-  overflow-y: auto;
-  transform: translateY(100%);
-  transition: transform 0.25s ease;
-}
-
-.settings-overlay.open .settings-panel {
-  transform: translateY(0);
-}
-
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.settings-header h2 {
-  font-family: var(--font-display);
-  font-size: 17px;
-  margin: 0;
-}
-
-.key-group {
-  margin-bottom: 18px;
-}
-
-.key-group label {
-  display: block;
-  font-size: 13px;
-  color: var(--text-dim);
-  margin-bottom: 6px;
-}
-
-.key-group input {
-  width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 12px 14px;
-  border-radius: 12px;
-  font-size: 14px;
-}
-
-.key-group input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.mono { font-family: var(--font-mono); }
-
-.hint {
-  font-size: 12px;
-  color: var(--text-dim);
-  line-height: 1.6;
-  margin: 6px 0 0;
-}
-
-.save-btn {
-  width: 100%;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 14px;
-  border-radius: 14px;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  margin-top: 4px;
-}
-
-.save-btn:active { transform: scale(0.98); }
+  event.respondWith(
+    caches.match(event.request).then(cached => cached || fetch(event.request))
+  );
+});
