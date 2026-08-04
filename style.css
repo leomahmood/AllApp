@@ -1,69 +1,324 @@
-# هاب هوش مصنوعی من 🤖
+/* ---------- توکن‌های طراحی (Design Tokens) ---------- */
+:root {
+  --bg: #1C1B1F;
+  --bg-elevated: #26242B;
+  --text: #F5F1EA;
+  --text-dim: #8A8792;
+  --accent: #5B5FEF;
+  --accent-soft: rgba(91, 95, 239, 0.15);
+  --amber: #E8A33D;
+  --green: #4CAF7D;
+  --border: rgba(245, 241, 234, 0.08);
+  --radius: 18px;
+  --font-display: 'Space Grotesk', 'Vazirmatn', sans-serif;
+  --font-body: 'Vazirmatn', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
 
-یه اپلیکیشن وب که مثل اپ موبایل کار می‌کنه (PWA) و می‌تونی باهاش با چند مدل هوش مصنوعی مختلف (Claude، GPT، Gemini) چت کنی — با کلید API خودت.
+* { box-sizing: border-box; }
 
-## چطور اجرا‌ش کنم؟ (روی کامپیوتر)
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-tap-highlight-color: transparent;
+}
 
-این پروژه به **دو تا سرور** نیاز داره که هم‌زمان اجرا بشن — پس به **دو تا پنجره‌ی ترمینال** جدا نیاز داری:
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
 
-1. یکی خود اپ (فایل‌های HTML/CSS/JS) رو سرو می‌کنه.
-2. یکی دیگه proxy هست که جلوی خطای CORS رو می‌گیره و پیام‌ها رو به Claude/GPT/Gemini می‌رسونه.
+/* ---------- هدر ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 8px;
+  flex-shrink: 0;
+}
 
-**ترمینال شماره ۱ — اجرای خود اپ:**
-```
-cd ai-hub
-python -m http.server 8000
-```
-(روی مک/لینوکس معمولاً `python3 -m http.server 8000`)
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-**ترمینال شماره ۲ (یه پنجره‌ی جدید باز کن) — اجرای proxy:**
-```
-cd ai-hub
-python proxy.py
-```
+.brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
 
-بعد در مرورگر برو به: `http://localhost:8000`
+.brand h1 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
 
-هر دو پنجره‌ی ترمینال باید باز و روشن بمونن تا اپ کار کنه.
+.icon-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
 
-## چطور روی گوشیم نصبش کنم؟
+.icon-btn:active { transform: scale(0.92); }
 
-برای نصب روی گوشی، اپ باید روی اینترنت (با HTTPS) میزبانی بشه، نه روی لپ‌تاپ خودت. ساده‌ترین راه‌های رایگان:
+/* ---------- انتخاب‌گر مدل: امضای بصری برنامه ---------- */
+.model-switcher {
+  display: flex;
+  gap: 8px;
+  padding: 8px 18px 14px;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
 
-1. **GitHub Pages** — فایل‌ها رو در یه ریپازیتوری گیت‌هاب بذار و Pages رو فعال کن.
-2. **Netlify** یا **Vercel** — پوشه رو درگ اند دراپ کن، در چند ثانیه یه لینک HTTPS بهت می‌ده.
-3. **Cloudflare Pages** — مشابه بالا.
+.preset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
 
-بعد از اینکه لینک رو باز کردی:
-- **اندروید (Chrome):** یه پیام «افزودن به صفحه اصلی» میاد، یا از منوی سه‌نقطه «Install app» رو بزن.
-- **آیفون (Safari):** دکمه Share رو بزن، بعد «Add to Home Screen».
+.preset.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
 
-## ساختار پروژه — هر فایل چیکار می‌کنه
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  opacity: 0.5;
+}
 
-| فایل | وظیفه |
-|---|---|
-| `index.html` | اسکلت صفحه: هدر، دکمه‌های انتخاب مدل، ناحیه چت، جعبه تنظیمات |
-| `style.css` | ظاهر و رنگ‌بندی برنامه |
-| `app.js` | تمام منطق: ذخیره کلیدها، سوییچ بین مدل‌ها، صدا زدن API هر مدل |
-| `manifest.json` | اطلاعاتی که به مرورگر می‌گه چطور اپ رو به‌عنوان «اپلیکیشن» نصب کنه |
-| `sw.js` | Service Worker — فایل‌های اپ رو کش می‌کنه تا آفلاین هم باز بشه |
-| `proxy.py` | سرور واسط محلی که مشکل CORS رو حل می‌کنه و پیام رو به Claude/GPT/Gemini می‌رسونه |
-| `icons/` | آیکون‌های اپ برای صفحه اصلی گوشی |
+.status-dot.ready {
+  background: var(--green);
+  opacity: 1;
+  box-shadow: 0 0 6px var(--green);
+}
 
-## نکته‌ی مهم درباره‌ی CORS
+/* ---------- ناحیه چت ---------- */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-مرورگرها به‌خاطر امنیت، جلوی تماس مستقیم یک وب‌سایت با اکثر API‌های خارجی رو می‌گیرن (نه‌فقط OpenAI — عملاً Anthropic و Google هم همینطورن). به همین خاطر توی این پروژه یه `proxy.py` ساختیم: مرورگر با این سرور محلی (روی پورت 8787) حرف می‌زنه، و این سرور به‌جای مرورگر با شرکت هوش مصنوعی صحبت می‌کنه. وقتی بخوای اپ رو روی اینترنت واقعی منتشر کنی، این proxy هم باید یه‌جایی (مثلاً یه Cloudflare Worker رایگان) میزبانی بشه — وقتی به اون مرحله رسیدیم با هم انجامش می‌دیم.
+.empty-state {
+  margin: auto;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  max-width: 260px;
+  line-height: 1.8;
+}
 
-## نکته‌ی امنیتی درباره‌ی کلیدهای API
+.msg {
+  max-width: 82%;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  line-height: 1.7;
+  font-size: 15px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
 
-هیچ‌وقت کلید API‌ت رو توی چت یا جای عمومی پیست نکن. اگه به اشتباه جایی share کردی، همون لحظه از پنل همون سرویس (مثلاً Google AI Studio یا OpenAI dashboard) بازش کن و کلید رو حذف/ری‌جنریت کن.
+.msg.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-left-radius: 6px;
+}
 
-## قدم بعدی برای یادگیری
+.msg.assistant {
+  align-self: flex-start;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-bottom-right-radius: 6px;
+}
 
-پیشنهاد می‌کنم به این ترتیب پیش بریم:
-1. اول اپ رو لوکال اجرا کن و مطمئن شو با کلید Claude یا Gemini کار می‌کنه.
-2. با هم کد `app.js` رو خط به خط مرور کنیم تا مطمئن بشی می‌فهمی هر تابع چیکار می‌کنه.
-3. بعد یاد بگیریم چطور یه دیتابیس واقعی یا حساب کاربری بهش اضافه کنیم (اختیاری).
-4. در آخر با هم روی اینترنت منتشرش کنیم و روی گوشیت نصبش کنیم.
+.msg.error {
+  align-self: flex-start;
+  background: rgba(232, 90, 90, 0.12);
+  border: 1px solid rgba(232, 90, 90, 0.35);
+  color: #f0a0a0;
+}
 
-هر جا سوال داشتی یا هرجا گیر کردی، بگو تا با هم قدم به قدم جلو بریم.
+.msg.loading {
+  align-self: flex-start;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* ---------- نوار پیام ---------- */
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  max-height: 120px;
+}
+
+.composer textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.send-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 17px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.send-btn:active { transform: scale(0.9); }
+.send-btn:disabled { opacity: 0.4; }
+
+/* ---------- پنل تنظیمات ---------- */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.settings-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.settings-panel {
+  background: var(--bg-elevated);
+  width: 100%;
+  border-radius: 24px 24px 0 0;
+  padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+  max-height: 82vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+}
+
+.settings-overlay.open .settings-panel {
+  transform: translateY(0);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.settings-header h2 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  margin: 0;
+}
+
+.key-group {
+  margin-bottom: 18px;
+}
+
+.key-group label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.key-group input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.key-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.mono { font-family: var(--font-mono); }
+
+.hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin: 6px 0 0;
+}
+
+.save-btn {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 14px;
+  border-radius: 14px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.save-btn:active { transform: scale(0.98); }
