@@ -217,7 +217,11 @@ async function callProxy(provider, apiKey, payload) {
 
   const data = await res.json();
   if (!res.ok) {
-    const detail = data.error || JSON.stringify(data).slice(0, 200);
+    let detail = data.error;
+    if (detail && typeof detail === 'object') {
+      detail = detail.message || JSON.stringify(detail).slice(0, 200);
+    }
+    detail = detail || JSON.stringify(data).slice(0, 200);
     throw new Error(`${provider} (${res.status}): ${detail}`);
   }
   return data;
