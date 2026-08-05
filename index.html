@@ -20,7 +20,10 @@
       <span class="brand-dot"></span>
       <h1>هاب هوش مصنوعی</h1>
     </div>
-    <button id="settingsBtn" class="icon-btn" aria-label="تنظیمات">⚙</button>
+    <div class="header-actions">
+      <button id="weatherBtn" class="icon-btn" aria-label="آب و هوا">☁</button>
+      <button id="settingsBtn" class="icon-btn" aria-label="تنظیمات">⚙</button>
+    </div>
   </header>
 
   <!-- انتخاب‌گر مدل: شبیه دکمه‌های پیش‌تنظیم رادیو -->
@@ -53,6 +56,34 @@
   </footer>
 
   <!-- پنل تنظیمات (کشویی از پایین) -->
+  <!-- پنل آب‌وهوا (کشویی از پایین) -->
+  <div class="settings-overlay" id="weatherOverlay">
+    <div class="settings-panel">
+      <div class="settings-header">
+        <h2>آب و هوا</h2>
+        <button id="closeWeather" class="icon-btn">✕</button>
+      </div>
+
+      <div class="settings-body">
+        <div class="weather-search-row">
+          <input type="text" id="citySearch" placeholder="اسم شهر رو بنویس... (مثلاً تهران، پاریس، دبی)" />
+          <button id="citySearchBtn" class="icon-btn">🔍</button>
+        </div>
+
+        <div class="city-chips" id="cityChips">
+          <button class="chip" data-city="تهران">تهران</button>
+          <button class="chip" data-city="مشهد">مشهد</button>
+          <button class="chip" data-city="اصفهان">اصفهان</button>
+          <button class="chip" data-city="شیراز">شیراز</button>
+          <button class="chip" data-city="تبریز">تبریز</button>
+          <button class="chip" data-city="اهواز">اهواز</button>
+        </div>
+
+        <div id="weatherResult" class="weather-result"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="settings-overlay" id="settingsOverlay">
     <div class="settings-panel">
       <div class="settings-header">
