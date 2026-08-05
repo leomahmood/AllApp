@@ -2,7 +2,7 @@
 // فقط وقتی آفلاینی (اصلاً اینترنت نداری)، از کش قدیمی استفاده می‌کنه.
 // هر بار که این عدد رو عوض کنی (v2, v3, ...)، مرورگرها مجبور می‌شن کش قدیمی رو کامل دور بریزن.
 
-const CACHE_NAME = 'ai-hub-v2';
+const CACHE_NAME = 'ai-hub-v3';
 const FILES_TO_CACHE = [
   './',
   './index.html',
@@ -30,16 +30,22 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/api/') || event.request.method !== 'GET') return;
+  const requestUrl = new URL(event.request.url);
+
+  // فقط برای فایل‌های خود اپ (هم‌دامنه) دخالت کن.
+  // درخواست‌های به سایت‌های دیگه (آب‌وهوا، proxy هوش مصنوعی و...) رو دست‌نخورده بذار
+  // که خود مرورگر مستقیم مدیریتشون کنه.
+  if (requestUrl.origin !== self.location.origin || event.request.method !== 'GET') {
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)
       .then(networkResponse => {
-        // نسخه‌ی تازه رو هم توی کش به‌روز کن برای حالت آفلاین بعدی
         const clone = networkResponse.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         return networkResponse;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(event.request).then(cached => cached || Response.error()))
   );
 });
