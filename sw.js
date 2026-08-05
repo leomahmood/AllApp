@@ -1,7 +1,8 @@
-// Service Worker ساده: فایل‌های اصلی رو کش می‌کنه
-// تا اپ حتی با اینترنت ضعیف هم باز بشه (چت کردن البته نیاز به اینترنت داره)
+// Service Worker: همیشه اول از اینترنت نسخه‌ی تازه رو می‌گیره.
+// فقط وقتی آفلاینی (اصلاً اینترنت نداری)، از کش قدیمی استفاده می‌کنه.
+// هر بار که این عدد رو عوض کنی (v2, v3, ...)، مرورگرها مجبور می‌شن کش قدیمی رو کامل دور بریزن.
 
-const CACHE_NAME = 'ai-hub-v1';
+const CACHE_NAME = 'ai-hub-v2';
 const FILES_TO_CACHE = [
   './',
   './index.html',
@@ -29,10 +30,16 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // فقط برای فایل‌های خود اپ کش استفاده کن، درخواست‌های API رو دست نزن
   if (event.request.url.includes('/api/') || event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
+    fetch(event.request)
+      .then(networkResponse => {
+        // نسخه‌ی تازه رو هم توی کش به‌روز کن برای حالت آفلاین بعدی
+        const clone = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
