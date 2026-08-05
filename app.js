@@ -1,436 +1,404 @@
-/* ---------- توکن‌های طراحی (Design Tokens) ---------- */
-:root {
-  --bg: #1C1B1F;
-  --bg-elevated: #26242B;
-  --text: #F5F1EA;
-  --text-dim: #8A8792;
-  --accent: #5B5FEF;
-  --accent-soft: rgba(91, 95, 239, 0.15);
-  --amber: #E8A33D;
-  --green: #4CAF7D;
-  --border: rgba(245, 241, 234, 0.08);
-  --radius: 18px;
-  --font-display: 'Space Grotesk', 'Vazirmatn', sans-serif;
-  --font-body: 'Vazirmatn', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+/* =========================================================
+   app.js
+   منطق اصلی اپلیکیشن. هر بخش با توضیح فارسی مشخص شده
+   تا بتونی قدم به قدم بفهمی هر تیکه کد چیکار می‌کنه.
+   ========================================================= */
+
+// ---------- ۱. گرفتن ارجاع به المان‌های HTML ----------
+const chatArea = document.getElementById('chatArea');
+const emptyState = document.getElementById('emptyState');
+const userInput = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+const modelSwitcher = document.getElementById('modelSwitcher');
+const settingsBtn = document.getElementById('settingsBtn');
+const closeSettings = document.getElementById('closeSettings');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const saveKeysBtn = document.getElementById('saveKeys');
+
+const anthropicKeyInput = document.getElementById('anthropicKey');
+const openaiKeyInput = document.getElementById('openaiKey');
+
+// المان‌های پنل آب‌وهوا
+const weatherBtn = document.getElementById('weatherBtn');
+const weatherOverlay = document.getElementById('weatherOverlay');
+const closeWeather = document.getElementById('closeWeather');
+const citySearch = document.getElementById('citySearch');
+const citySearchBtn = document.getElementById('citySearchBtn');
+const cityChips = document.getElementById('cityChips');
+const weatherResult = document.getElementById('weatherResult');
+
+// ---------- ۲. وضعیت برنامه (State) ----------
+// provider فعلی که کاربر انتخاب کرده. پیش‌فرض: anthropic
+let currentProvider = localStorage.getItem('lastProvider') || 'anthropic';
+
+// تاریخچه‌ی پیام‌ها برای هر provider جدا نگه داشته می‌شه
+// چون هر مدل باید فقط مکالمه‌ی خودش رو به یاد داشته باشه
+let conversations = {
+  anthropic: [],
+  openai: [],
+  google: []
+};
+
+// ---------- ۳. توابع کمکی برای ذخیره و خواندن کلیدها ----------
+function getKeys() {
+  return {
+    anthropic: localStorage.getItem('key_anthropic') || '',
+    openai: localStorage.getItem('key_openai') || '',
+    google: localStorage.getItem('key_google') || ''
+  };
 }
 
-* { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-body);
-  -webkit-tap-highlight-color: transparent;
+function saveKeys() {
+  localStorage.setItem('key_anthropic', anthropicKeyInput.value.trim());
+  localStorage.setItem('key_openai', openaiKeyInput.value.trim());
+  updateStatusDots();
+  closeSettingsPanel();
 }
 
-body {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  overflow: hidden;
+// وقتی صفحه بالا میاد، کلیدهای ذخیره‌شده رو داخل اینپوت‌ها بریز
+function loadKeysIntoInputs() {
+  const keys = getKeys();
+  anthropicKeyInput.value = keys.anthropic;
+  openaiKeyInput.value = keys.openai;
 }
 
-/* ---------- هدر ---------- */
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 18px 8px;
-  flex-shrink: 0;
+// دایره‌ی سبز کنار اسم هر مدل رو روشن/خاموش کن بسته به اینکه کلید داره یا نه
+function updateStatusDots() {
+  const keys = getKeys();
+  document.querySelectorAll('.status-dot').forEach(dot => {
+    const provider = dot.dataset.status;
+    const isReady = provider === 'google' ? true : Boolean(keys[provider]);
+    dot.classList.toggle('ready', isReady);
+  });
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+// ---------- ۴. مدیریت پنل تنظیمات (باز/بسته کردن) ----------
+function openSettingsPanel() {
+  loadKeysIntoInputs();
+  settingsOverlay.classList.add('open');
 }
 
-.brand-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 12px var(--accent);
+function closeSettingsPanel() {
+  settingsOverlay.classList.remove('open');
 }
 
-.brand h1 {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: -0.01em;
+settingsBtn.addEventListener('click', openSettingsPanel);
+closeSettings.addEventListener('click', closeSettingsPanel);
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) closeSettingsPanel();
+});
+saveKeysBtn.addEventListener('click', saveKeys);
+
+// ---------- ۵. سوییچ کردن بین مدل‌ها ----------
+function setActiveProvider(provider) {
+  currentProvider = provider;
+  localStorage.setItem('lastProvider', provider);
+
+  document.querySelectorAll('.preset').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.provider === provider);
+  });
+
+  renderConversation();
 }
 
-.icon-btn {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
+modelSwitcher.addEventListener('click', (e) => {
+  const btn = e.target.closest('.preset');
+  if (!btn) return;
+  setActiveProvider(btn.dataset.provider);
+});
+
+// ---------- ۶. نمایش پیام‌ها در صفحه ----------
+function renderConversation() {
+  chatArea.innerHTML = '';
+  const msgs = conversations[currentProvider];
+
+  if (msgs.length === 0) {
+    chatArea.appendChild(emptyState);
+    return;
+  }
+
+  msgs.forEach(msg => {
+    const bubble = document.createElement('div');
+    bubble.className = `msg ${msg.role}`;
+    bubble.textContent = msg.content;
+    chatArea.appendChild(bubble);
+  });
+
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-.icon-btn:active { transform: scale(0.92); }
-
-/* ---------- انتخاب‌گر مدل: امضای بصری برنامه ---------- */
-.model-switcher {
-  display: flex;
-  gap: 8px;
-  padding: 8px 18px 14px;
-  flex-shrink: 0;
-  overflow-x: auto;
+function addMessage(role, content) {
+  conversations[currentProvider].push({ role, content });
+  renderConversation();
 }
 
-.preset {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  padding: 9px 16px;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.18s ease;
+function addLoadingBubble() {
+  const bubble = document.createElement('div');
+  bubble.className = 'msg loading';
+  bubble.id = 'loadingBubble';
+  bubble.textContent = 'در حال فکر کردن...';
+  chatArea.appendChild(bubble);
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-.preset.active {
-  color: var(--text);
-  border-color: var(--accent);
-  background: var(--accent-soft);
+function removeLoadingBubble() {
+  const bubble = document.getElementById('loadingBubble');
+  if (bubble) bubble.remove();
 }
 
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--text-dim);
-  opacity: 0.5;
+function addErrorBubble(text) {
+  const bubble = document.createElement('div');
+  bubble.className = 'msg error';
+  bubble.textContent = text;
+  chatArea.appendChild(bubble);
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-.status-dot.ready {
-  background: var(--green);
-  opacity: 1;
-  box-shadow: 0 0 6px var(--green);
+// ---------- ۷. ارسال پیام و صدا زدن API درست ----------
+async function handleSend() {
+  const text = userInput.value.trim();
+  if (!text) return;
+
+  const keys = getKeys();
+  const needsClientKey = currentProvider !== 'google';
+  if (needsClientKey && !keys[currentProvider]) {
+    addErrorBubble('اول باید کلید API این مدل رو در تنظیمات وارد کنی.');
+    return;
+  }
+
+  addMessage('user', text);
+  userInput.value = '';
+  userInput.style.height = 'auto';
+  sendBtn.disabled = true;
+  addLoadingBubble();
+
+  try {
+    let reply;
+    if (currentProvider === 'anthropic') {
+      reply = await callAnthropic(keys.anthropic);
+    } else if (currentProvider === 'openai') {
+      reply = await callOpenAI(keys.openai);
+    } else if (currentProvider === 'google') {
+      reply = await callGoogle(keys.google);
+    }
+    removeLoadingBubble();
+    addMessage('assistant', reply);
+  } catch (err) {
+    removeLoadingBubble();
+    addErrorBubble('خطا: ' + err.message);
+  } finally {
+    sendBtn.disabled = false;
+  }
 }
 
-/* ---------- ناحیه چت ---------- */
-.chat-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 18px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+sendBtn.addEventListener('click', handleSend);
+userInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSend();
+  }
+});
+
+// بزرگ شدن خودکار جعبه‌ی متن وقتی چند خطی می‌شه
+userInput.addEventListener('input', () => {
+  userInput.style.height = 'auto';
+  userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+});
+
+// ---------- ۸. تابع‌های اختصاصی هر ارائه‌دهنده‌ی هوش مصنوعی ----------
+// همه از یک سرور واسط آنلاین (Cloudflare Worker) عبور می‌کنن تا مشکل CORS مرورگر حل بشه.
+// این یعنی دیگه لازم نیست هیچ ترمینالی روی کامپیوترت باز باشه.
+const PROXY_URL = 'https://flat-math-35b6.mahmoodgh20471.workers.dev';
+
+// تابع مشترک: پیام رو به آدرس /proxy/<provider> می‌فرسته
+async function callProxy(provider, apiKey, payload) {
+  let res;
+  try {
+    res = await fetch(`${PROXY_URL}/proxy/${provider}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, payload })
+    });
+  } catch (e) {
+    throw new Error('نمی‌تونم به proxy وصل بشم. اتصال اینترنتت رو چک کن.');
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    let detail = data.error;
+    if (detail && typeof detail === 'object') {
+      detail = detail.message || JSON.stringify(detail).slice(0, 200);
+    }
+    detail = detail || JSON.stringify(data).slice(0, 200);
+    throw new Error(`${provider} (${res.status}): ${detail}`);
+  }
+  return data;
 }
 
-.empty-state {
-  margin: auto;
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 14px;
-  max-width: 260px;
-  line-height: 1.8;
+// --- Anthropic (Claude) ---
+async function callAnthropic(apiKey) {
+  const history = conversations.anthropic.map(m => ({
+    role: m.role === 'assistant' ? 'assistant' : 'user',
+    content: m.content
+  }));
+
+  const data = await callProxy('anthropic', apiKey, {
+    model: 'claude-sonnet-5',
+    max_tokens: 1024,
+    messages: history
+  });
+
+  return data.content.map(block => block.text || '').join('\n');
 }
 
-.msg {
-  max-width: 82%;
-  padding: 12px 16px;
-  border-radius: var(--radius);
-  line-height: 1.7;
-  font-size: 15px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+// --- OpenAI (GPT) ---
+async function callOpenAI(apiKey) {
+  const history = conversations.openai.map(m => ({
+    role: m.role === 'assistant' ? 'assistant' : 'user',
+    content: m.content
+  }));
+
+  const data = await callProxy('openai', apiKey, {
+    model: 'gpt-4o-mini',
+    messages: history
+  });
+
+  return data.choices[0].message.content;
 }
 
-.msg.user {
-  align-self: flex-end;
-  background: var(--accent);
-  color: #fff;
-  border-bottom-left-radius: 6px;
+// --- Google (Gemini) ---
+async function callGoogle(apiKey) {
+  const history = conversations.google.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }]
+  }));
+
+  const data = await callProxy('google', apiKey, { contents: history });
+
+  return data.candidates[0].content.parts[0].text;
 }
 
-.msg.assistant {
-  align-self: flex-start;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-bottom-right-radius: 6px;
+// ---------- ۱۰. بخش آب‌وهوا (سرویس رایگان Open-Meteo، بدون نیاز به کلید) ----------
+
+function openWeatherPanel() {
+  weatherOverlay.classList.add('open');
 }
 
-.msg.error {
-  align-self: flex-start;
-  background: rgba(232, 90, 90, 0.12);
-  border: 1px solid rgba(232, 90, 90, 0.35);
-  color: #f0a0a0;
+function closeWeatherPanel() {
+  weatherOverlay.classList.remove('open');
 }
 
-.msg.loading {
-  align-self: flex-start;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 13px;
+weatherBtn.addEventListener('click', openWeatherPanel);
+closeWeather.addEventListener('click', closeWeatherPanel);
+weatherOverlay.addEventListener('click', (e) => {
+  if (e.target === weatherOverlay) closeWeatherPanel();
+});
+
+cityChips.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  citySearch.value = chip.dataset.city;
+  fetchWeather(chip.dataset.city);
+});
+
+citySearchBtn.addEventListener('click', () => {
+  const city = citySearch.value.trim();
+  if (city) fetchWeather(city);
+});
+
+citySearch.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const city = citySearch.value.trim();
+    if (city) fetchWeather(city);
+  }
+});
+
+// نگاشت کد وضعیت هوای Open-Meteo به توضیح فارسی و ایموجی
+const WEATHER_CODES = {
+  0: ['آسمان صاف', '☀️'],
+  1: ['کمی ابری', '🌤'],
+  2: ['نیمه‌ابری', '⛅'],
+  3: ['ابری', '☁️'],
+  45: ['مه', '🌫'],
+  48: ['مه یخ‌زده', '🌫'],
+  51: ['نم‌نم باران', '🌦'],
+  53: ['باران ملایم', '🌦'],
+  55: ['باران متوسط', '🌧'],
+  61: ['باران سبک', '🌧'],
+  63: ['باران', '🌧'],
+  65: ['باران شدید', '⛈'],
+  71: ['برف سبک', '🌨'],
+  73: ['برف', '❄️'],
+  75: ['برف شدید', '❄️'],
+  80: ['رگبار سبک', '🌦'],
+  81: ['رگبار', '🌧'],
+  82: ['رگبار شدید', '⛈'],
+  95: ['رعدوبرق', '⛈'],
+  96: ['رعدوبرق با تگرگ', '⛈'],
+  99: ['رعدوبرق شدید', '⛈'],
+};
+
+function describeWeatherCode(code) {
+  return WEATHER_CODES[code] || ['نامشخص', '🌡'];
 }
 
-/* ---------- نوار پیام ---------- */
-.composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
-  background: var(--bg);
-  flex-shrink: 0;
+async function fetchWeather(cityName) {
+  weatherResult.innerHTML = '<div class="weather-state">در حال جستجو...</div>';
+
+  try {
+    // قدم ۱: اسم شهر رو به مختصات جغرافیایی تبدیل کن
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=fa&format=json`
+    );
+    const geoData = await geoRes.json();
+
+    if (!geoData.results || geoData.results.length === 0) {
+      weatherResult.innerHTML = '<div class="weather-state error">شهری با این اسم پیدا نشد.</div>';
+      return;
+    }
+
+    const place = geoData.results[0];
+
+    // قدم ۲: با مختصات، وضعیت آب‌وهوای فعلی رو بگیر
+    const weatherRes = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`
+    );
+    const weatherData = await weatherRes.json();
+    const current = weatherData.current;
+    const [label, icon] = describeWeatherCode(current.weather_code);
+
+    const displayName = [place.name, place.admin1, place.country]
+      .filter(Boolean)
+      .join('، ');
+
+    weatherResult.innerHTML = `
+      <div class="weather-card">
+        <div class="city-name">${displayName}</div>
+        <div class="weather-icon">${icon}</div>
+        <div class="temp">${Math.round(current.temperature_2m)}°</div>
+        <div class="condition">${label}</div>
+        <div class="weather-meta">
+          <span>💧 رطوبت ${current.relative_humidity_2m}%</span>
+          <span>💨 باد ${Math.round(current.wind_speed_10m)} km/h</span>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    weatherResult.innerHTML = `<div class="weather-state error">خطا در دریافت آب‌وهوا: ${err.message}</div>`;
+  }
 }
 
-.composer textarea {
-  flex: 1;
-  resize: none;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 16px;
-  padding: 12px 16px;
-  font-family: var(--font-body);
-  font-size: 15px;
-  max-height: 120px;
+// ---------- ۱۱. راه‌اندازی اولیه هنگام باز شدن صفحه ----------
+function init() {
+  setActiveProvider(currentProvider);
+  updateStatusDots();
+
+  // ثبت Service Worker برای قابلیت نصب و کارکرد آفلاین
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      // اگر ثبت نشد، مشکلی نیست، اپ همچنان کار می‌کنه فقط بدون کش آفلاین
+    });
+  }
 }
 
-.composer textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.send-btn {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  font-size: 17px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.send-btn:active { transform: scale(0.9); }
-.send-btn:disabled { opacity: 0.4; }
-
-/* ---------- پنل تنظیمات ---------- */
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: flex-end;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  z-index: 10;
-}
-
-.settings-overlay.open {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.settings-panel {
-  background: var(--bg-elevated);
-  width: 100%;
-  border-radius: 24px 24px 0 0;
-  padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
-  max-height: 82vh;
-  overflow-y: auto;
-  transform: translateY(100%);
-  transition: transform 0.25s ease;
-}
-
-.settings-overlay.open .settings-panel {
-  transform: translateY(0);
-}
-
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.settings-header h2 {
-  font-family: var(--font-display);
-  font-size: 17px;
-  margin: 0;
-}
-
-.key-group {
-  margin-bottom: 18px;
-}
-
-.key-group label {
-  display: block;
-  font-size: 13px;
-  color: var(--text-dim);
-  margin-bottom: 6px;
-}
-
-.key-group input {
-  width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 12px 14px;
-  border-radius: 12px;
-  font-size: 14px;
-}
-
-.key-group input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.mono { font-family: var(--font-mono); }
-
-.hint {
-  font-size: 12px;
-  color: var(--text-dim);
-  line-height: 1.6;
-  margin: 6px 0 0;
-}
-
-.save-btn {
-  width: 100%;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 14px;
-  border-radius: 14px;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  margin-top: 4px;
-}
-
-.save-btn:active { transform: scale(0.98); }
-
-/* ---------- هدر: گروه دکمه‌ها ---------- */
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* ---------- پنل آب‌وهوا ---------- */
-.weather-search-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.weather-search-row input {
-  flex: 1;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 12px 14px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-family: var(--font-body);
-}
-
-.weather-search-row input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.city-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.chip {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  padding: 7px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.chip:active {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.weather-result {
-  min-height: 60px;
-}
-
-.weather-card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-}
-
-.weather-card .city-name {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.weather-card .weather-icon {
-  font-size: 46px;
-  margin: 10px 0;
-}
-
-.weather-card .temp {
-  font-family: var(--font-mono);
-  font-size: 36px;
-  font-weight: 500;
-  color: var(--accent);
-}
-
-.weather-card .condition {
-  color: var(--text-dim);
-  font-size: 14px;
-  margin-top: 4px;
-}
-
-.weather-card .weather-meta {
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-  font-size: 13px;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-}
-
-.weather-state {
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 14px;
-  padding: 20px 0;
-}
-
-.weather-state.error {
-  color: #f0a0a0;
-}
+init();
