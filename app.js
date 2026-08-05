@@ -18,6 +18,15 @@ const saveKeysBtn = document.getElementById('saveKeys');
 const anthropicKeyInput = document.getElementById('anthropicKey');
 const openaiKeyInput = document.getElementById('openaiKey');
 
+// المان‌های پنل آب‌وهوا
+const weatherBtn = document.getElementById('weatherBtn');
+const weatherOverlay = document.getElementById('weatherOverlay');
+const closeWeather = document.getElementById('closeWeather');
+const citySearch = document.getElementById('citySearch');
+const citySearchBtn = document.getElementById('citySearchBtn');
+const cityChips = document.getElementById('cityChips');
+const weatherResult = document.getElementById('weatherResult');
+
 // ---------- ۲. وضعیت برنامه (State) ----------
 // provider فعلی که کاربر انتخاب کرده. پیش‌فرض: anthropic
 let currentProvider = localStorage.getItem('lastProvider') || 'anthropic';
@@ -269,7 +278,117 @@ async function callGoogle(apiKey) {
   return data.candidates[0].content.parts[0].text;
 }
 
-// ---------- ۹. راه‌اندازی اولیه هنگام باز شدن صفحه ----------
+// ---------- ۱۰. بخش آب‌وهوا (سرویس رایگان Open-Meteo، بدون نیاز به کلید) ----------
+
+function openWeatherPanel() {
+  weatherOverlay.classList.add('open');
+}
+
+function closeWeatherPanel() {
+  weatherOverlay.classList.remove('open');
+}
+
+weatherBtn.addEventListener('click', openWeatherPanel);
+closeWeather.addEventListener('click', closeWeatherPanel);
+weatherOverlay.addEventListener('click', (e) => {
+  if (e.target === weatherOverlay) closeWeatherPanel();
+});
+
+cityChips.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  citySearch.value = chip.dataset.city;
+  fetchWeather(chip.dataset.city);
+});
+
+citySearchBtn.addEventListener('click', () => {
+  const city = citySearch.value.trim();
+  if (city) fetchWeather(city);
+});
+
+citySearch.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const city = citySearch.value.trim();
+    if (city) fetchWeather(city);
+  }
+});
+
+// نگاشت کد وضعیت هوای Open-Meteo به توضیح فارسی و ایموجی
+const WEATHER_CODES = {
+  0: ['آسمان صاف', '☀️'],
+  1: ['کمی ابری', '🌤'],
+  2: ['نیمه‌ابری', '⛅'],
+  3: ['ابری', '☁️'],
+  45: ['مه', '🌫'],
+  48: ['مه یخ‌زده', '🌫'],
+  51: ['نم‌نم باران', '🌦'],
+  53: ['باران ملایم', '🌦'],
+  55: ['باران متوسط', '🌧'],
+  61: ['باران سبک', '🌧'],
+  63: ['باران', '🌧'],
+  65: ['باران شدید', '⛈'],
+  71: ['برف سبک', '🌨'],
+  73: ['برف', '❄️'],
+  75: ['برف شدید', '❄️'],
+  80: ['رگبار سبک', '🌦'],
+  81: ['رگبار', '🌧'],
+  82: ['رگبار شدید', '⛈'],
+  95: ['رعدوبرق', '⛈'],
+  96: ['رعدوبرق با تگرگ', '⛈'],
+  99: ['رعدوبرق شدید', '⛈'],
+};
+
+function describeWeatherCode(code) {
+  return WEATHER_CODES[code] || ['نامشخص', '🌡'];
+}
+
+async function fetchWeather(cityName) {
+  weatherResult.innerHTML = '<div class="weather-state">در حال جستجو...</div>';
+
+  try {
+    // قدم ۱: اسم شهر رو به مختصات جغرافیایی تبدیل کن
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=fa&format=json`
+    );
+    const geoData = await geoRes.json();
+
+    if (!geoData.results || geoData.results.length === 0) {
+      weatherResult.innerHTML = '<div class="weather-state error">شهری با این اسم پیدا نشد.</div>';
+      return;
+    }
+
+    const place = geoData.results[0];
+
+    // قدم ۲: با مختصات، وضعیت آب‌وهوای فعلی رو بگیر
+    const weatherRes = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`
+    );
+    const weatherData = await weatherRes.json();
+    const current = weatherData.current;
+    const [label, icon] = describeWeatherCode(current.weather_code);
+
+    const displayName = [place.name, place.admin1, place.country]
+      .filter(Boolean)
+      .join('، ');
+
+    weatherResult.innerHTML = `
+      <div class="weather-card">
+        <div class="city-name">${displayName}</div>
+        <div class="weather-icon">${icon}</div>
+        <div class="temp">${Math.round(current.temperature_2m)}°</div>
+        <div class="condition">${label}</div>
+        <div class="weather-meta">
+          <span>💧 رطوبت ${current.relative_humidity_2m}%</span>
+          <span>💨 باد ${Math.round(current.wind_speed_10m)} km/h</span>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    weatherResult.innerHTML = `<div class="weather-state error">خطا در دریافت آب‌وهوا: ${err.message}</div>`;
+  }
+}
+
+// ---------- ۱۱. راه‌اندازی اولیه هنگام باز شدن صفحه ----------
 function init() {
   setActiveProvider(currentProvider);
   updateStatusDots();
