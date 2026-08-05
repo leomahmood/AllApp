@@ -17,7 +17,6 @@ const saveKeysBtn = document.getElementById('saveKeys');
 
 const anthropicKeyInput = document.getElementById('anthropicKey');
 const openaiKeyInput = document.getElementById('openaiKey');
-const googleKeyInput = document.getElementById('googleKey');
 
 // ---------- ۲. وضعیت برنامه (State) ----------
 // provider فعلی که کاربر انتخاب کرده. پیش‌فرض: anthropic
@@ -43,7 +42,6 @@ function getKeys() {
 function saveKeys() {
   localStorage.setItem('key_anthropic', anthropicKeyInput.value.trim());
   localStorage.setItem('key_openai', openaiKeyInput.value.trim());
-  localStorage.setItem('key_google', googleKeyInput.value.trim());
   updateStatusDots();
   closeSettingsPanel();
 }
@@ -53,7 +51,6 @@ function loadKeysIntoInputs() {
   const keys = getKeys();
   anthropicKeyInput.value = keys.anthropic;
   openaiKeyInput.value = keys.openai;
-  googleKeyInput.value = keys.google;
 }
 
 // دایره‌ی سبز کنار اسم هر مدل رو روشن/خاموش کن بسته به اینکه کلید داره یا نه
@@ -61,7 +58,8 @@ function updateStatusDots() {
   const keys = getKeys();
   document.querySelectorAll('.status-dot').forEach(dot => {
     const provider = dot.dataset.status;
-    dot.classList.toggle('ready', Boolean(keys[provider]));
+    const isReady = provider === 'google' ? true : Boolean(keys[provider]);
+    dot.classList.toggle('ready', isReady);
   });
 }
 
@@ -153,7 +151,8 @@ async function handleSend() {
   if (!text) return;
 
   const keys = getKeys();
-  if (!keys[currentProvider]) {
+  const needsClientKey = currentProvider !== 'google';
+  if (needsClientKey && !keys[currentProvider]) {
     addErrorBubble('اول باید کلید API این مدل رو در تنظیمات وارد کنی.');
     return;
   }
