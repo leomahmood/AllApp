@@ -577,18 +577,17 @@ function describeWeatherCode(code) {
 
 async function fetchWeather(cityName) {
   weatherResult.innerHTML = '<div class="weather-state">در حال جستجو...</div>';
-
   try {
     // قدم ۱: تبدیل اسم شهر به مختصات از طریق Worker خودت
     const geoRes = await fetch(
       `${PROXY_URL}/weather/geocode?name=${encodeURIComponent(cityName)}`
     );
-
+    
+    if (!geoRes.ok) throw new Error('خطا در جستجوی شهر');
     const geoData = await geoRes.json();
 
     if (!geoData.results || geoData.results.length === 0) {
-      weatherResult.innerHTML =
-        '<div class="weather-state error">شهری با این اسم پیدا نشد.</div>';
+      weatherResult.innerHTML = '<div class="weather-state error">شهری با این اسم پیدا نشد.</div>';
       return;
     }
 
@@ -598,8 +597,10 @@ async function fetchWeather(cityName) {
     const weatherRes = await fetch(
       `${PROXY_URL}/weather/current?latitude=${place.latitude}&longitude=${place.longitude}`
     );
-
+    
+    if (!weatherRes.ok) throw new Error('خطا در دریافت آب‌وهوا');
     const weatherData = await weatherRes.json();
+    
     const current = weatherData.current;
     const [label, icon] = describeWeatherCode(current.weather_code);
 
@@ -620,11 +621,7 @@ async function fetchWeather(cityName) {
       </div>
     `;
   } catch (err) {
-    weatherResult.innerHTML = `
-      <div class="weather-state error">
-        خطا در دریافت آب‌وهوا: ${err.message}
-      </div>
-    `;
+    weatherResult.innerHTML = `<div class="weather-state error">خطا در دریافت آب‌وهوا: ${err.message}</div>`;
   }
 }
 
