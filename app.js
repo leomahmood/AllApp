@@ -217,12 +217,6 @@ function renderConversation() {
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-  msgs.forEach(msg => {
-    const bubble = document.createElement('div');
-    bubble.className = `msg ${msg.role}`;
-    bubble.textContent = msg.content;
-    chatArea.appendChild(bubble);
-  });
 
   chatArea.scrollTop = chatArea.scrollHeight;
 }
@@ -300,11 +294,6 @@ async function handleSend() {
 
   const imageToSend = hasImage ? pendingImage : null;
 
-  addMessage('user', text, imageToSend);
-
-  userInput.value = '';
-  userInput.style.height = 'auto';
-  sendBtn.disabled = true;
 
   clearPendingImage();
 
@@ -443,15 +432,6 @@ async function callAnthropic(apiKey) {
   return data.content.map(block => block.text || '').join('\n');
 }
 
-  const data = await callProxy('anthropic', apiKey, {
-    model: 'claude-sonnet-5',
-    max_tokens: 1024,
-    messages: history
-  });
-
-  return data.content.map(block => block.text || '').join('\n');
-}
-
 // --- OpenAI (GPT) ---
 async function callOpenAI(apiKey) {
   const history = conversations.openai.map((msg, index, arr) => {
@@ -482,15 +462,6 @@ async function callOpenAI(apiKey) {
       content: msg.content
     };
   });
-
-  const data = await callProxy('openai', apiKey, {
-    model: 'gpt-4o-mini',
-    messages: history,
-    max_tokens: 1024
-  });
-
-  return data.choices[0].message.content;
-}
 
   const data = await callProxy('openai', apiKey, {
     model: 'gpt-4o-mini',
@@ -534,14 +505,6 @@ async function callGoogle(apiKey) {
     };
   });
 
-  const data = await callProxy('google', apiKey, {
-    contents: history
-  });
-
-  return data.candidates?.[0]?.content?.parts
-    ?.map(part => part.text || '')
-    .join('\n') || 'پاسخی از Gemini دریافت نشد.';
-}
 
   const data = await callProxy('google', apiKey, { contents: history });
 
