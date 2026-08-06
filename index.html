@@ -51,8 +51,14 @@
 
   <!-- نوار پایین برای نوشتن پیام -->
   <footer class="composer">
+   <div class="image-preview-bar" id="imagePreviewBar" hidden></div>
+
+   <div class="composer">
+  <button id="attachBtn" class="icon-btn" type="button">📎</button>
+  
     <textarea id="userInput" placeholder="پیامت رو بنویس..." rows="1"></textarea>
     <button id="sendBtn" class="send-btn" aria-label="ارسال">➤</button>
+    <input type="file" id="imageInput" accept="image/*" hidden>
   </footer>
 
   <!-- پنل تنظیمات (کشویی از پایین) -->
