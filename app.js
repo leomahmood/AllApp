@@ -346,23 +346,26 @@ async function fetchWeather(cityName) {
   weatherResult.innerHTML = '<div class="weather-state">در حال جستجو...</div>';
 
   try {
-    // قدم ۱: اسم شهر رو به مختصات جغرافیایی تبدیل کن
+    // قدم ۱: تبدیل اسم شهر به مختصات از طریق Worker خودت
     const geoRes = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=fa&format=json`
+      `${PROXY_URL}/weather/geocode?name=${encodeURIComponent(cityName)}`
     );
+
     const geoData = await geoRes.json();
 
     if (!geoData.results || geoData.results.length === 0) {
-      weatherResult.innerHTML = '<div class="weather-state error">شهری با این اسم پیدا نشد.</div>';
+      weatherResult.innerHTML =
+        '<div class="weather-state error">شهری با این اسم پیدا نشد.</div>';
       return;
     }
 
     const place = geoData.results[0];
 
-    // قدم ۲: با مختصات، وضعیت آب‌وهوای فعلی رو بگیر
+    // قدم ۲: گرفتن آب‌وهوا از طریق Worker خودت
     const weatherRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`
+      `${PROXY_URL}/weather/current?latitude=${place.latitude}&longitude=${place.longitude}`
     );
+
     const weatherData = await weatherRes.json();
     const current = weatherData.current;
     const [label, icon] = describeWeatherCode(current.weather_code);
@@ -384,7 +387,11 @@ async function fetchWeather(cityName) {
       </div>
     `;
   } catch (err) {
-    weatherResult.innerHTML = `<div class="weather-state error">خطا در دریافت آب‌وهوا: ${err.message}</div>`;
+    weatherResult.innerHTML = `
+      <div class="weather-state error">
+        خطا در دریافت آب‌وهوا: ${err.message}
+      </div>
+    `;
   }
 }
 
