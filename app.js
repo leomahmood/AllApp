@@ -1,25 +1,25 @@
 /* =========================================================
-   app.js
-   منطق اصلی اپلیکیشن. هر بخش با توضیح فارسی مشخص شده
-   تا بتونی قدم به قدم بفهمی هر تیکه کد چیکار می‌کنه.
-   ========================================================= */
+   app.js - نسخه تمیز برای دکمه تصویر + چت + آب‌وهوا
+========================================================= */
 
-// ---------- ۱. گرفتن ارجاع به المان‌های HTML ----------
-const attachBtn = document.getElementById('attachBtn');
-const imageInput = document.getElementById('imageInput');
-const imagePreviewBar = document.getElementById('imagePreviewBar');
+// ---------- 1. گرفتن ارجاع به المان‌های HTML ----------
 const chatArea = document.getElementById('chatArea');
 const emptyState = document.getElementById('emptyState');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
 const modelSwitcher = document.getElementById('modelSwitcher');
+
 const settingsBtn = document.getElementById('settingsBtn');
 const closeSettings = document.getElementById('closeSettings');
 const settingsOverlay = document.getElementById('settingsOverlay');
 const saveKeysBtn = document.getElementById('saveKeys');
-
 const anthropicKeyInput = document.getElementById('anthropicKey');
 const openaiKeyInput = document.getElementById('openaiKey');
+
+// دکمه و input تصویر
+const attachBtn = document.getElementById('attachBtn');
+const imageInput = document.getElementById('imageInput');
+const imagePreviewBar = document.getElementById('imagePreviewBar');
 
 // المان‌های پنل آب‌وهوا
 const weatherBtn = document.getElementById('weatherBtn');
@@ -30,92 +30,27 @@ const citySearchBtn = document.getElementById('citySearchBtn');
 const cityChips = document.getElementById('cityChips');
 const weatherResult = document.getElementById('weatherResult');
 
-// ---------- ۲. وضعیت برنامه (State) ----------
-// provider فعلی که کاربر انتخاب کرده. پیش‌فرض: anthropic
+// ---------- 2. وضعیت برنامه ----------
 let currentProvider = localStorage.getItem('lastProvider') || 'anthropic';
 
-// تاریخچه‌ی پیام‌ها برای هر provider جدا نگه داشته می‌شه
-// چون هر مدل باید فقط مکالمه‌ی خودش رو به یاد داشته باشه
 let conversations = {
   anthropic: [],
   openai: [],
   google: []
 };
+
 let pendingImage = null;
 
-// ---------- ۳. توابع کمکی برای ذخیره و خواندن کلیدها ----------
-function compressImage(file, maxDimension = 1280, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      reject(new Error('فایل انتخابی تصویر نیست.'));
-      return;
-    }
+const PROXY_URL = 'https://flat-math-35b6.mahmoodgh20471.workers.dev';
 
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const img = new Image();
-
-      img.onload = () => {
-        let { width, height } = img;
-
-        // اگر عکس بزرگ بود، کوچکش کن
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round(height * (maxDimension / width));
-            width = maxDimension;
-          } else {
-            width = Math.round(width * (maxDimension / height));
-            height = maxDimension;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // برای کم‌حجم شدن، PNG را هم معمولاً JPEG می‌کنیم
-        const mimeType = file.type === 'image/png' ? 'image/jpeg' : file.type || 'image/jpeg';
-
-        const dataUrl = canvas.toDataURL(mimeType, quality);
-        const base64 = dataUrl.split(',')[1];
-
-        resolve({
-          dataUrl,
-          base64,
-          mimeType
-        });
-      };
-
-      img.onerror = () => reject(new Error('نمی‌توانم تصویر را بخوانم.'));
-      img.src = reader.result;
-    };
-
-    reader.onerror = () => reject(new Error('خواندن فایل ناموفق بود.'));
-    reader.readAsDataURL(file);
-  });
-}
-function showImagePreview(imageData) {
-  imagePreviewBar.hidden = false;
-
-  imagePreviewBar.innerHTML = `
-    <div class="image-preview-item">
-      <img src="${imageData.dataUrl}" alt="پیش‌نمایش تصویر">
-      <button id="removeImageBtn" type="button">✕</button>
-    </div>
-  `;
-
-  document.getElementById('removeImageBtn').addEventListener('click', clearPendingImage);
+// ---------- 3. تابع کمکی برای اتصال امن event ----------
+function on(el, eventName, fn) {
+  if (el) {
+    el.addEventListener(eventName, fn);
+  }
 }
 
-function clearPendingImage() {
-  pendingImage = null;
-  imagePreviewBar.hidden = true;
-  imagePreviewBar.innerHTML = '';
-}
+// ---------- 4. کلیدها ----------
 function getKeys() {
   return {
     anthropic: localStorage.getItem('key_anthropic') || '',
@@ -125,22 +60,28 @@ function getKeys() {
 }
 
 function saveKeys() {
-  localStorage.setItem('key_anthropic', anthropicKeyInput.value.trim());
-  localStorage.setItem('key_openai', openaiKeyInput.value.trim());
+  if (anthropicKeyInput) {
+    localStorage.setItem('key_anthropic', anthropicKeyInput.value.trim());
+  }
+
+  if (openaiKeyInput) {
+    localStorage.setItem('key_openai', openaiKeyInput.value.trim());
+  }
+
   updateStatusDots();
   closeSettingsPanel();
 }
 
-// وقتی صفحه بالا میاد، کلیدهای ذخیره‌شده رو داخل اینپوت‌ها بریز
 function loadKeysIntoInputs() {
   const keys = getKeys();
-  anthropicKeyInput.value = keys.anthropic;
-  openaiKeyInput.value = keys.openai;
+
+  if (anthropicKeyInput) anthropicKeyInput.value = keys.anthropic;
+  if (openaiKeyInput) openaiKeyInput.value = keys.openai;
 }
 
-// دایره‌ی سبز کنار اسم هر مدل رو روشن/خاموش کن بسته به اینکه کلید داره یا نه
 function updateStatusDots() {
   const keys = getKeys();
+
   document.querySelectorAll('.status-dot').forEach(dot => {
     const provider = dot.dataset.status;
     const isReady = provider === 'google' ? true : Boolean(keys[provider]);
@@ -148,24 +89,26 @@ function updateStatusDots() {
   });
 }
 
-// ---------- ۴. مدیریت پنل تنظیمات (باز/بسته کردن) ----------
+// ---------- 5. پنل تنظیمات ----------
 function openSettingsPanel() {
   loadKeysIntoInputs();
-  settingsOverlay.classList.add('open');
+  if (settingsOverlay) settingsOverlay.classList.add('open');
 }
 
 function closeSettingsPanel() {
-  settingsOverlay.classList.remove('open');
+  if (settingsOverlay) settingsOverlay.classList.remove('open');
 }
 
-settingsBtn.addEventListener('click', openSettingsPanel);
-closeSettings.addEventListener('click', closeSettingsPanel);
-settingsOverlay.addEventListener('click', (e) => {
+on(settingsBtn, 'click', openSettingsPanel);
+on(closeSettings, 'click', closeSettingsPanel);
+
+on(settingsOverlay, 'click', (e) => {
   if (e.target === settingsOverlay) closeSettingsPanel();
 });
-saveKeysBtn.addEventListener('click', saveKeys);
 
-// ---------- ۵. سوییچ کردن بین مدل‌ها ----------
+on(saveKeysBtn, 'click', saveKeys);
+
+// ---------- 6. سوییچ بین مدل‌ها ----------
 function setActiveProvider(provider) {
   currentProvider = provider;
   localStorage.setItem('lastProvider', provider);
@@ -177,20 +120,22 @@ function setActiveProvider(provider) {
   renderConversation();
 }
 
-modelSwitcher.addEventListener('click', (e) => {
+on(modelSwitcher, 'click', (e) => {
   const btn = e.target.closest('.preset');
   if (!btn) return;
   setActiveProvider(btn.dataset.provider);
 });
 
-// ---------- ۶. نمایش پیام‌ها در صفحه ----------
+// ---------- 7. نمایش پیام‌ها ----------
 function renderConversation() {
+  if (!chatArea) return;
+
   chatArea.innerHTML = '';
 
-  const msgs = conversations[currentProvider];
+  const msgs = conversations[currentProvider] || [];
 
   if (msgs.length === 0) {
-    chatArea.appendChild(emptyState);
+    if (emptyState) chatArea.appendChild(emptyState);
     return;
   }
 
@@ -217,16 +162,6 @@ function renderConversation() {
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-  msgs.forEach(msg => {
-    const bubble = document.createElement('div');
-    bubble.className = `msg ${msg.role}`;
-    bubble.textContent = msg.content;
-    chatArea.appendChild(bubble);
-  });
-
-  chatArea.scrollTop = chatArea.scrollHeight;
-}
-
 function addMessage(role, content, image = null) {
   conversations[currentProvider].push({
     role,
@@ -238,10 +173,13 @@ function addMessage(role, content, image = null) {
 }
 
 function addLoadingBubble() {
+  if (!chatArea) return;
+
   const bubble = document.createElement('div');
   bubble.className = 'msg loading';
   bubble.id = 'loadingBubble';
   bubble.textContent = 'در حال فکر کردن...';
+
   chatArea.appendChild(bubble);
   chatArea.scrollTop = chatArea.scrollHeight;
 }
@@ -252,19 +190,103 @@ function removeLoadingBubble() {
 }
 
 function addErrorBubble(text) {
+  if (!chatArea) return;
+
   const bubble = document.createElement('div');
   bubble.className = 'msg error';
   bubble.textContent = text;
+
   chatArea.appendChild(bubble);
   chatArea.scrollTop = chatArea.scrollHeight;
 }
-attachBtn.addEventListener('click', () => {
-  imageInput.click();
+
+// ---------- 8. آماده‌سازی تصویر ----------
+function compressImage(file, maxDimension = 1280, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('فایل انتخابی تصویر نیست.'));
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const img = new Image();
+
+      img.onload = () => {
+        let { width, height } = img;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round(height * (maxDimension / width));
+            width = maxDimension;
+          } else {
+            width = Math.round(width * (maxDimension / height));
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const mimeType = file.type === 'image/png'
+          ? 'image/jpeg'
+          : file.type || 'image/jpeg';
+
+        const dataUrl = canvas.toDataURL(mimeType, quality);
+        const base64 = dataUrl.split(',')[1];
+
+        resolve({
+          dataUrl,
+          base64,
+          mimeType
+        });
+      };
+
+      img.onerror = () => reject(new Error('نمی‌توانم تصویر را بخوانم.'));
+      img.src = reader.result;
+    };
+
+    reader.onerror = () => reject(new Error('خواندن فایل ناموفق بود.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function showImagePreview(imageData) {
+  if (!imagePreviewBar) return;
+
+  imagePreviewBar.hidden = false;
+
+  imagePreviewBar.innerHTML = `
+    <div class="image-preview-item">
+      <img src="${imageData.dataUrl}" alt="پیش‌نمایش تصویر">
+      <button id="removeImageBtn" type="button">✕</button>
+    </div>
+  `;
+
+  const removeBtn = document.getElementById('removeImageBtn');
+  on(removeBtn, 'click', clearPendingImage);
+}
+
+function clearPendingImage() {
+  pendingImage = null;
+
+  if (!imagePreviewBar) return;
+
+  imagePreviewBar.hidden = true;
+  imagePreviewBar.innerHTML = '';
+}
+
+on(attachBtn, 'click', () => {
+  if (imageInput) imageInput.click();
 });
 
-imageInput.addEventListener('change', async () => {
-  const file = imageInput.files[0];
-
+on(imageInput, 'change', async () => {
+  const file = imageInput.files && imageInput.files[0];
   if (!file) return;
 
   try {
@@ -278,17 +300,16 @@ imageInput.addEventListener('change', async () => {
   imageInput.value = '';
 });
 
-// ---------- ۷. ارسال پیام و صدا زدن API درست ----------
+// ---------- 9. ارسال پیام ----------
 async function handleSend() {
-  let text = userInput.value.trim();
+  if (!userInput) return;
 
+  const text = userInput.value.trim();
   const hasImage = Boolean(pendingImage && pendingImage.base64);
 
   if (!text && !hasImage) return;
 
-  if (!text && hasImage) {
-    text = 'این تصویر را بررسی کن.';
-  }
+  const messageText = text || 'این تصویر را بررسی کن.';
 
   const keys = getKeys();
   const needsClientKey = currentProvider !== 'google';
@@ -300,14 +321,14 @@ async function handleSend() {
 
   const imageToSend = hasImage ? pendingImage : null;
 
-  addMessage('user', text, imageToSend);
+  addMessage('user', messageText, imageToSend);
 
   userInput.value = '';
   userInput.style.height = 'auto';
-  sendBtn.disabled = true;
+
+  if (sendBtn) sendBtn.disabled = true;
 
   clearPendingImage();
-
   addLoadingBubble();
 
   try {
@@ -327,85 +348,70 @@ async function handleSend() {
     removeLoadingBubble();
     addErrorBubble('خطا: ' + err.message);
   } finally {
-    sendBtn.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
   }
 }
 
-  addMessage('user', text);
-  userInput.value = '';
-  userInput.style.height = 'auto';
-  sendBtn.disabled = true;
-  addLoadingBubble();
+on(sendBtn, 'click', handleSend);
 
-  try {
-    let reply;
-    if (currentProvider === 'anthropic') {
-      reply = await callAnthropic(keys.anthropic);
-    } else if (currentProvider === 'openai') {
-      reply = await callOpenAI(keys.openai);
-    } else if (currentProvider === 'google') {
-      reply = await callGoogle(keys.google);
-    }
-    removeLoadingBubble();
-    addMessage('assistant', reply);
-  } catch (err) {
-    removeLoadingBubble();
-    addErrorBubble('خطا: ' + err.message);
-  } finally {
-    sendBtn.disabled = false;
-  }
-}
-
-sendBtn.addEventListener('click', handleSend);
-userInput.addEventListener('keydown', (e) => {
+on(userInput, 'keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     handleSend();
   }
 });
 
-// بزرگ شدن خودکار جعبه‌ی متن وقتی چند خطی می‌شه
-userInput.addEventListener('input', () => {
+on(userInput, 'input', () => {
   userInput.style.height = 'auto';
   userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
 });
 
-// ---------- ۸. تابع‌های اختصاصی هر ارائه‌دهنده‌ی هوش مصنوعی ----------
-// همه از یک سرور واسط آنلاین (Cloudflare Worker) عبور می‌کنن تا مشکل CORS مرورگر حل بشه.
-// این یعنی دیگه لازم نیست هیچ ترمینالی روی کامپیوترت باز باشه.
-const PROXY_URL = 'https://flat-math-35b6.mahmoodgh20471.workers.dev';
-
-// تابع مشترک: پیام رو به آدرس /proxy/<provider> می‌فرسته
+// ---------- 10. Proxy ----------
 async function callProxy(provider, apiKey, payload) {
   let res;
+
   try {
     res = await fetch(`${PROXY_URL}/proxy/${provider}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, payload })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        apiKey,
+        payload
+      })
     });
   } catch (e) {
     throw new Error('نمی‌تونم به proxy وصل بشم. اتصال اینترنتت رو چک کن.');
   }
 
-  const data = await res.json();
+  let data;
+
+  try {
+    data = await res.json();
+  } catch (e) {
+    throw new Error('جواب proxy معتبر نبود.');
+  }
+
   if (!res.ok) {
     let detail = data.error;
+
     if (detail && typeof detail === 'object') {
       detail = detail.message || JSON.stringify(detail).slice(0, 200);
     }
+
     detail = detail || JSON.stringify(data).slice(0, 200);
+
     throw new Error(`${provider} (${res.status}): ${detail}`);
   }
+
   return data;
 }
 
-// --- Anthropic (Claude) ---
+// ---------- 11. Anthropic ----------
 async function callAnthropic(apiKey) {
   const history = conversations.anthropic.map((msg, index, arr) => {
     const role = msg.role === 'assistant' ? 'assistant' : 'user';
-
-    // برای اینکه حجم درخواست خیلی زیاد نشود، فقط آخرین پیام کاربر را با عکس می‌فرستیم
     const isLastUserMessage = index === arr.length - 1 && msg.role === 'user';
 
     if (isLastUserMessage && msg.image && msg.image.base64) {
@@ -440,23 +446,15 @@ async function callAnthropic(apiKey) {
     messages: history
   });
 
-  return data.content.map(block => block.text || '').join('\n');
+  return (data.content || [])
+    .map(block => block.text || '')
+    .join('\n') || 'پاسخی از Claude دریافت نشد.';
 }
 
-  const data = await callProxy('anthropic', apiKey, {
-    model: 'claude-sonnet-5',
-    max_tokens: 1024,
-    messages: history
-  });
-
-  return data.content.map(block => block.text || '').join('\n');
-}
-
-// --- OpenAI (GPT) ---
+// ---------- 12. OpenAI ----------
 async function callOpenAI(apiKey) {
   const history = conversations.openai.map((msg, index, arr) => {
     const role = msg.role === 'assistant' ? 'assistant' : 'user';
-
     const isLastUserMessage = index === arr.length - 1 && msg.role === 'user';
 
     if (isLastUserMessage && msg.image && msg.image.dataUrl) {
@@ -489,22 +487,13 @@ async function callOpenAI(apiKey) {
     max_tokens: 1024
   });
 
-  return data.choices[0].message.content;
+  return data.choices?.[0]?.message?.content || 'پاسخی از GPT دریافت نشد.';
 }
 
-  const data = await callProxy('openai', apiKey, {
-    model: 'gpt-4o-mini',
-    messages: history
-  });
-
-  return data.choices[0].message.content;
-}
-
-// --- Google (Gemini) ---
+// ---------- 13. Gemini ----------
 async function callGoogle(apiKey) {
   const history = conversations.google.map((msg, index, arr) => {
     const role = msg.role === 'assistant' ? 'model' : 'user';
-
     const isLastUserMessage = index === arr.length - 1 && msg.role === 'user';
 
     if (isLastUserMessage && msg.image && msg.image.base64) {
@@ -543,47 +532,42 @@ async function callGoogle(apiKey) {
     .join('\n') || 'پاسخی از Gemini دریافت نشد.';
 }
 
-  const data = await callProxy('google', apiKey, { contents: history });
-
-  return data.candidates[0].content.parts[0].text;
-}
-
-// ---------- ۱۰. بخش آب‌وهوا (سرویس رایگان Open-Meteo، بدون نیاز به کلید) ----------
-
+// ---------- 14. آب‌وهوا ----------
 function openWeatherPanel() {
-  weatherOverlay.classList.add('open');
+  if (weatherOverlay) weatherOverlay.classList.add('open');
 }
 
 function closeWeatherPanel() {
-  weatherOverlay.classList.remove('open');
+  if (weatherOverlay) weatherOverlay.classList.remove('open');
 }
 
-weatherBtn.addEventListener('click', openWeatherPanel);
-closeWeather.addEventListener('click', closeWeatherPanel);
-weatherOverlay.addEventListener('click', (e) => {
+on(weatherBtn, 'click', openWeatherPanel);
+on(closeWeather, 'click', closeWeatherPanel);
+
+on(weatherOverlay, 'click', (e) => {
   if (e.target === weatherOverlay) closeWeatherPanel();
 });
 
-cityChips.addEventListener('click', (e) => {
+on(cityChips, 'click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
-  citySearch.value = chip.dataset.city;
+
+  if (citySearch) citySearch.value = chip.dataset.city;
   fetchWeather(chip.dataset.city);
 });
 
-citySearchBtn.addEventListener('click', () => {
-  const city = citySearch.value.trim();
+on(citySearchBtn, 'click', () => {
+  const city = citySearch ? citySearch.value.trim() : '';
   if (city) fetchWeather(city);
 });
 
-citySearch.addEventListener('keydown', (e) => {
+on(citySearch, 'keydown', (e) => {
   if (e.key === 'Enter') {
-    const city = citySearch.value.trim();
+    const city = citySearch ? citySearch.value.trim() : '';
     if (city) fetchWeather(city);
   }
 });
 
-// نگاشت کد وضعیت هوای Open-Meteo به توضیح فارسی و ایموجی
 const WEATHER_CODES = {
   0: ['آسمان صاف', '☀️'],
   1: ['کمی ابری', '🌤'],
@@ -605,23 +589,54 @@ const WEATHER_CODES = {
   82: ['رگبار شدید', '⛈'],
   95: ['رعدوبرق', '⛈'],
   96: ['رعدوبرق با تگرگ', '⛈'],
-  99: ['رعدوبرق شدید', '⛈'],
+  99: ['رعدوبرق شدید', '⛈']
 };
 
 function describeWeatherCode(code) {
   return WEATHER_CODES[code] || ['نامشخص', '🌡'];
 }
 
+async function fetchJson(url) {
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  return await res.json();
+}
+
+async function getGeocode(cityName) {
+  const encoded = encodeURIComponent(cityName);
+
+  const proxyUrl = `${PROXY_URL}/weather/geocode?name=${encoded}`;
+  const directUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encoded}&count=1&language=fa&format=json`;
+
+  try {
+    return await fetchJson(proxyUrl);
+  } catch (err) {
+    return await fetchJson(directUrl);
+  }
+}
+
+async function getCurrentWeather(latitude, longitude) {
+  const proxyUrl = `${PROXY_URL}/weather/current?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`;
+  const directUrl = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`;
+
+  try {
+    return await fetchJson(proxyUrl);
+  } catch (err) {
+    return await fetchJson(directUrl);
+  }
+}
+
 async function fetchWeather(cityName) {
+  if (!weatherResult) return;
+
   weatherResult.innerHTML = '<div class="weather-state">در حال جستجو...</div>';
 
   try {
-    // قدم ۱: تبدیل اسم شهر به مختصات از طریق Worker خودت
-    const geoRes = await fetch(
-      `${PROXY_URL}/weather/geocode?name=${encodeURIComponent(cityName)}`
-    );
-
-    const geoData = await geoRes.json();
+    const geoData = await getGeocode(cityName);
 
     if (!geoData.results || geoData.results.length === 0) {
       weatherResult.innerHTML =
@@ -630,13 +645,8 @@ async function fetchWeather(cityName) {
     }
 
     const place = geoData.results[0];
+    const weatherData = await getCurrentWeather(place.latitude, place.longitude);
 
-    // قدم ۲: گرفتن آب‌وهوا از طریق Worker خودت
-    const weatherRes = await fetch(
-      `${PROXY_URL}/weather/current?latitude=${place.latitude}&longitude=${place.longitude}`
-    );
-
-    const weatherData = await weatherRes.json();
     const current = weatherData.current;
     const [label, icon] = describeWeatherCode(current.weather_code);
 
@@ -665,15 +675,14 @@ async function fetchWeather(cityName) {
   }
 }
 
-// ---------- ۱۱. راه‌اندازی اولیه هنگام باز شدن صفحه ----------
+// ---------- 15. راه‌اندازی اولیه ----------
 function init() {
   setActiveProvider(currentProvider);
   updateStatusDots();
 
-  // ثبت Service Worker برای قابلیت نصب و کارکرد آفلاین
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {
-      // اگر ثبت نشد، مشکلی نیست، اپ همچنان کار می‌کنه فقط بدون کش آفلاین
+      // اگر ثبت نشد، اپ همچنان کار می‌کند
     });
   }
 }
