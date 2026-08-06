@@ -1,8 +1,7 @@
-// Service Worker: همیشه اول از اینترنت نسخه‌ی تازه رو می‌گیره.
-// فقط وقتی آفلاینی (اصلاً اینترنت نداری)، از کش قدیمی استفاده می‌کنه.
-// هر بار که این عدد رو عوض کنی (v2, v3, ...)، مرورگرها مجبور می‌شن کش قدیمی رو کامل دور بریزن.
+// هر بار که نسخه جدید می‌دهی، این عدد را عوض کن.
+// مثلاً v4، بعد v5، بعد v6
+const CACHE_NAME = 'ai-hub-v4';
 
-const CACHE_NAME = 'ai-hub-v3';
 const FILES_TO_CACHE = [
   './',
   './index.html',
@@ -15,37 +14,62 @@ const FILES_TO_CACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE))
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+
+      try {
+        await cache.addAll(FILES_TO_CACHE);
+      } catch (error) {
+        console.warn('بعضی فایل‌ها در کش ذخیره نشدند:', error);
+      }
+
+      self.skipWaiting();
+    })()
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    (async () => {
+      const cacheNames = await caches.keys();
+
+      await Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      );
+
+      self.clients.claim();
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
-  // فقط برای فایل‌های خود اپ (هم‌دامنه) دخالت کن.
-  // درخواست‌های به سایت‌های دیگه (آب‌وهوا، proxy هوش مصنوعی و...) رو دست‌نخورده بذار
-  // که خود مرورگر مستقیم مدیریتشون کنه.
+  // فقط درخواست‌های GET و فقط فایل‌های خود اپ را مدیریت کن
   if (requestUrl.origin !== self.location.origin || event.request.method !== 'GET') {
     return;
   }
 
   event.respondWith(
-    fetch(event.request)
-      .then(networkResponse => {
-        const clone = networkResponse.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        return networkResponse;
-      })
-      .catch(() => caches.match(event.request).then(cached => cached || Response.error()))
+    (async () => {
+      try {
+        // همیشه اول نسخه تازه را از اینترنت بگیر
+        const freshResponse = await fetch(event.request, {
+          cache: 'no-store'
+        });
+
+        // یک کپی هم برای آفلاین ذخیره کن
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(event.request, freshResponse.clone());
+
+        return freshResponse;
+      } catch (error) {
+        // اگر آفلاین بود، از کش قدیمی استفاده کن
+        const cachedResponse = await caches.match(event.request);
+        return cachedResponse || Response.error();
+      }
+    })()
   );
 });
