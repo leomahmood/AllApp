@@ -1,8 +1,9 @@
 /* =========================================================
-   app.js - نسخه تمیز برای دکمه تصویر + چت + آب‌وهوا
+   app.js - نسخه اضطراری برای بازگرداندن چت و آب‌وهوا
+   این نسخه فعلاً دکمه ارسال تصویر ندارد.
 ========================================================= */
 
-// ---------- 1. گرفتن ارجاع به المان‌های HTML ----------
+// ---------- 1. گرفتن المان‌های HTML ----------
 const chatArea = document.getElementById('chatArea');
 const emptyState = document.getElementById('emptyState');
 const userInput = document.getElementById('userInput');
@@ -16,12 +17,6 @@ const saveKeysBtn = document.getElementById('saveKeys');
 const anthropicKeyInput = document.getElementById('anthropicKey');
 const openaiKeyInput = document.getElementById('openaiKey');
 
-// دکمه و input تصویر
-const attachBtn = document.getElementById('attachBtn');
-const imageInput = document.getElementById('imageInput');
-const imagePreviewBar = document.getElementById('imagePreviewBar');
-
-// المان‌های پنل آب‌وهوا
 const weatherBtn = document.getElementById('weatherBtn');
 const weatherOverlay = document.getElementById('weatherOverlay');
 const closeWeather = document.getElementById('closeWeather');
@@ -39,12 +34,10 @@ let conversations = {
   google: []
 };
 
-let pendingImage = null;
-
 const PROXY_URL = 'https://flat-math-35b6.mahmoodgh20471.workers.dev';
 
-// ---------- 3. تابع کمکی برای اتصال امن event ----------
-function on(el, eventName, fn) {
+// ---------- 3. تابع کمکی برای اتصال امن دکمه‌ها ----------
+function addListener(el, eventName, fn) {
   if (el) {
     el.addEventListener(eventName, fn);
   }
@@ -92,23 +85,29 @@ function updateStatusDots() {
 // ---------- 5. پنل تنظیمات ----------
 function openSettingsPanel() {
   loadKeysIntoInputs();
-  if (settingsOverlay) settingsOverlay.classList.add('open');
+
+  if (settingsOverlay) {
+    settingsOverlay.classList.add('open');
+  }
 }
 
 function closeSettingsPanel() {
-  if (settingsOverlay) settingsOverlay.classList.remove('open');
+  if (settingsOverlay) {
+    settingsOverlay.classList.remove('open');
+  }
 }
 
-on(settingsBtn, 'click', openSettingsPanel);
-on(closeSettings, 'click', closeSettingsPanel);
+addListener(settingsBtn, 'click', openSettingsPanel);
+addListener(closeSettings, 'click', closeSettingsPanel);
+addListener(saveKeysBtn, 'click', saveKeys);
 
-on(settingsOverlay, 'click', (e) => {
-  if (e.target === settingsOverlay) closeSettingsPanel();
+addListener(settingsOverlay, 'click', (e) => {
+  if (e.target === settingsOverlay) {
+    closeSettingsPanel();
+  }
 });
 
-on(saveKeysBtn, 'click', saveKeys);
-
-// ---------- 6. سوییچ بین مدل‌ها ----------
+// ---------- 6. انتخاب مدل ----------
 function setActiveProvider(provider) {
   currentProvider = provider;
   localStorage.setItem('lastProvider', provider);
@@ -120,13 +119,14 @@ function setActiveProvider(provider) {
   renderConversation();
 }
 
-on(modelSwitcher, 'click', (e) => {
+addListener(modelSwitcher, 'click', (e) => {
   const btn = e.target.closest('.preset');
   if (!btn) return;
+
   setActiveProvider(btn.dataset.provider);
 });
 
-// ---------- 7. نمایش پیام‌ها ----------
+// ---------- 7. نمایش چت ----------
 function renderConversation() {
   if (!chatArea) return;
 
@@ -135,38 +135,26 @@ function renderConversation() {
   const msgs = conversations[currentProvider] || [];
 
   if (msgs.length === 0) {
-    if (emptyState) chatArea.appendChild(emptyState);
+    if (emptyState) {
+      chatArea.appendChild(emptyState);
+    }
     return;
   }
 
   msgs.forEach(msg => {
     const bubble = document.createElement('div');
     bubble.className = `msg ${msg.role}`;
-
-    if (msg.image && msg.image.dataUrl) {
-      const img = document.createElement('img');
-      img.src = msg.image.dataUrl;
-      img.className = 'msg-image';
-      bubble.appendChild(img);
-    }
-
-    if (msg.content) {
-      const textNode = document.createElement('div');
-      textNode.textContent = msg.content;
-      bubble.appendChild(textNode);
-    }
-
+    bubble.textContent = msg.content;
     chatArea.appendChild(bubble);
   });
 
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-function addMessage(role, content, image = null) {
+function addMessage(role, content) {
   conversations[currentProvider].push({
     role,
-    content,
-    image
+    content
   });
 
   renderConversation();
@@ -186,7 +174,10 @@ function addLoadingBubble() {
 
 function removeLoadingBubble() {
   const bubble = document.getElementById('loadingBubble');
-  if (bubble) bubble.remove();
+
+  if (bubble) {
+    bubble.remove();
+  }
 }
 
 function addErrorBubble(text) {
@@ -200,116 +191,13 @@ function addErrorBubble(text) {
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-// ---------- 8. آماده‌سازی تصویر ----------
-function compressImage(file, maxDimension = 1280, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      reject(new Error('فایل انتخابی تصویر نیست.'));
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const img = new Image();
-
-      img.onload = () => {
-        let { width, height } = img;
-
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round(height * (maxDimension / width));
-            width = maxDimension;
-          } else {
-            width = Math.round(width * (maxDimension / height));
-            height = maxDimension;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const mimeType = file.type === 'image/png'
-          ? 'image/jpeg'
-          : file.type || 'image/jpeg';
-
-        const dataUrl = canvas.toDataURL(mimeType, quality);
-        const base64 = dataUrl.split(',')[1];
-
-        resolve({
-          dataUrl,
-          base64,
-          mimeType
-        });
-      };
-
-      img.onerror = () => reject(new Error('نمی‌توانم تصویر را بخوانم.'));
-      img.src = reader.result;
-    };
-
-    reader.onerror = () => reject(new Error('خواندن فایل ناموفق بود.'));
-    reader.readAsDataURL(file);
-  });
-}
-
-function showImagePreview(imageData) {
-  if (!imagePreviewBar) return;
-
-  imagePreviewBar.hidden = false;
-
-  imagePreviewBar.innerHTML = `
-    <div class="image-preview-item">
-      <img src="${imageData.dataUrl}" alt="پیش‌نمایش تصویر">
-      <button id="removeImageBtn" type="button">✕</button>
-    </div>
-  `;
-
-  const removeBtn = document.getElementById('removeImageBtn');
-  on(removeBtn, 'click', clearPendingImage);
-}
-
-function clearPendingImage() {
-  pendingImage = null;
-
-  if (!imagePreviewBar) return;
-
-  imagePreviewBar.hidden = true;
-  imagePreviewBar.innerHTML = '';
-}
-
-on(attachBtn, 'click', () => {
-  if (imageInput) imageInput.click();
-});
-
-on(imageInput, 'change', async () => {
-  const file = imageInput.files && imageInput.files[0];
-  if (!file) return;
-
-  try {
-    const compressed = await compressImage(file, 1280, 0.85);
-    pendingImage = compressed;
-    showImagePreview(compressed);
-  } catch (err) {
-    alert('خطا در آماده‌سازی تصویر: ' + err.message);
-  }
-
-  imageInput.value = '';
-});
-
-// ---------- 9. ارسال پیام ----------
+// ---------- 8. ارسال پیام ----------
 async function handleSend() {
   if (!userInput) return;
 
   const text = userInput.value.trim();
-  const hasImage = Boolean(pendingImage && pendingImage.base64);
 
-  if (!text && !hasImage) return;
-
-  const messageText = text || 'این تصویر را بررسی کن.';
+  if (!text) return;
 
   const keys = getKeys();
   const needsClientKey = currentProvider !== 'google';
@@ -319,16 +207,15 @@ async function handleSend() {
     return;
   }
 
-  const imageToSend = hasImage ? pendingImage : null;
-
-  addMessage('user', messageText, imageToSend);
+  addMessage('user', text);
 
   userInput.value = '';
   userInput.style.height = 'auto';
 
-  if (sendBtn) sendBtn.disabled = true;
+  if (sendBtn) {
+    sendBtn.disabled = true;
+  }
 
-  clearPendingImage();
   addLoadingBubble();
 
   try {
@@ -348,25 +235,27 @@ async function handleSend() {
     removeLoadingBubble();
     addErrorBubble('خطا: ' + err.message);
   } finally {
-    if (sendBtn) sendBtn.disabled = false;
+    if (sendBtn) {
+      sendBtn.disabled = false;
+    }
   }
 }
 
-on(sendBtn, 'click', handleSend);
+addListener(sendBtn, 'click', handleSend);
 
-on(userInput, 'keydown', (e) => {
+addListener(userInput, 'keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     handleSend();
   }
 });
 
-on(userInput, 'input', () => {
+addListener(userInput, 'input', () => {
   userInput.style.height = 'auto';
   userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
 });
 
-// ---------- 10. Proxy ----------
+// ---------- 9. Proxy ----------
 async function callProxy(provider, apiKey, payload) {
   let res;
 
@@ -408,37 +297,12 @@ async function callProxy(provider, apiKey, payload) {
   return data;
 }
 
-// ---------- 11. Anthropic ----------
+// ---------- 10. Claude ----------
 async function callAnthropic(apiKey) {
-  const history = conversations.anthropic.map((msg, index, arr) => {
-    const role = msg.role === 'assistant' ? 'assistant' : 'user';
-    const isLastUserMessage = index === arr.length - 1 && msg.role === 'user';
-
-    if (isLastUserMessage && msg.image && msg.image.base64) {
-      return {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: msg.image.mimeType,
-              data: msg.image.base64
-            }
-          },
-          {
-            type: 'text',
-            text: msg.content || 'این تصویر را بررسی کن.'
-          }
-        ]
-      };
-    }
-
-    return {
-      role,
-      content: msg.content
-    };
-  });
+  const history = conversations.anthropic.map(msg => ({
+    role: msg.role === 'assistant' ? 'assistant' : 'user',
+    content: msg.content
+  }));
 
   const data = await callProxy('anthropic', apiKey, {
     model: 'claude-sonnet-5',
@@ -451,35 +315,12 @@ async function callAnthropic(apiKey) {
     .join('\n') || 'پاسخی از Claude دریافت نشد.';
 }
 
-// ---------- 12. OpenAI ----------
+// ---------- 11. GPT ----------
 async function callOpenAI(apiKey) {
-  const history = conversations.openai.map((msg, index, arr) => {
-    const role = msg.role === 'assistant' ? 'assistant' : 'user';
-    const isLastUserMessage = index === arr.length - 1 && msg.role === 'user';
-
-    if (isLastUserMessage && msg.image && msg.image.dataUrl) {
-      return {
-        role,
-        content: [
-          {
-            type: 'text',
-            text: msg.content || 'این تصویر را بررسی کن.'
-          },
-          {
-            type: 'image_url',
-            image_url: {
-              url: msg.image.dataUrl
-            }
-          }
-        ]
-      };
-    }
-
-    return {
-      role,
-      content: msg.content
-    };
-  });
+  const history = conversations.openai.map(msg => ({
+    role: msg.role === 'assistant' ? 'assistant' : 'user',
+    content: msg.content
+  }));
 
   const data = await callProxy('openai', apiKey, {
     model: 'gpt-4o-mini',
@@ -490,38 +331,12 @@ async function callOpenAI(apiKey) {
   return data.choices?.[0]?.message?.content || 'پاسخی از GPT دریافت نشد.';
 }
 
-// ---------- 13. Gemini ----------
+// ---------- 12. Gemini ----------
 async function callGoogle(apiKey) {
-  const history = conversations.google.map((msg, index, arr) => {
-    const role = msg.role === 'assistant' ? 'model' : 'user';
-    const isLastUserMessage = index === arr.length - 1 && msg.role === 'user';
-
-    if (isLastUserMessage && msg.image && msg.image.base64) {
-      return {
-        role,
-        parts: [
-          {
-            text: msg.content || 'این تصویر را بررسی کن.'
-          },
-          {
-            inline_data: {
-              mime_type: msg.image.mimeType,
-              data: msg.image.base64
-            }
-          }
-        ]
-      };
-    }
-
-    return {
-      role,
-      parts: [
-        {
-          text: msg.content || ''
-        }
-      ]
-    };
-  });
+  const history = conversations.google.map(msg => ({
+    role: msg.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: msg.content }]
+  }));
 
   const data = await callProxy('google', apiKey, {
     contents: history
@@ -532,39 +347,54 @@ async function callGoogle(apiKey) {
     .join('\n') || 'پاسخی از Gemini دریافت نشد.';
 }
 
-// ---------- 14. آب‌وهوا ----------
+// ---------- 13. آب‌وهوا ----------
 function openWeatherPanel() {
-  if (weatherOverlay) weatherOverlay.classList.add('open');
+  if (weatherOverlay) {
+    weatherOverlay.classList.add('open');
+  }
 }
 
 function closeWeatherPanel() {
-  if (weatherOverlay) weatherOverlay.classList.remove('open');
+  if (weatherOverlay) {
+    weatherOverlay.classList.remove('open');
+  }
 }
 
-on(weatherBtn, 'click', openWeatherPanel);
-on(closeWeather, 'click', closeWeatherPanel);
+addListener(weatherBtn, 'click', openWeatherPanel);
+addListener(closeWeather, 'click', closeWeatherPanel);
 
-on(weatherOverlay, 'click', (e) => {
-  if (e.target === weatherOverlay) closeWeatherPanel();
+addListener(weatherOverlay, 'click', (e) => {
+  if (e.target === weatherOverlay) {
+    closeWeatherPanel();
+  }
 });
 
-on(cityChips, 'click', (e) => {
+addListener(cityChips, 'click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
 
-  if (citySearch) citySearch.value = chip.dataset.city;
+  if (citySearch) {
+    citySearch.value = chip.dataset.city;
+  }
+
   fetchWeather(chip.dataset.city);
 });
 
-on(citySearchBtn, 'click', () => {
+addListener(citySearchBtn, 'click', () => {
   const city = citySearch ? citySearch.value.trim() : '';
-  if (city) fetchWeather(city);
+
+  if (city) {
+    fetchWeather(city);
+  }
 });
 
-on(citySearch, 'keydown', (e) => {
+addListener(citySearch, 'keydown', (e) => {
   if (e.key === 'Enter') {
     const city = citySearch ? citySearch.value.trim() : '';
-    if (city) fetchWeather(city);
+
+    if (city) {
+      fetchWeather(city);
+    }
   }
 });
 
@@ -596,47 +426,17 @@ function describeWeatherCode(code) {
   return WEATHER_CODES[code] || ['نامشخص', '🌡'];
 }
 
-async function fetchJson(url) {
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
-
-  return await res.json();
-}
-
-async function getGeocode(cityName) {
-  const encoded = encodeURIComponent(cityName);
-
-  const proxyUrl = `${PROXY_URL}/weather/geocode?name=${encoded}`;
-  const directUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encoded}&count=1&language=fa&format=json`;
-
-  try {
-    return await fetchJson(proxyUrl);
-  } catch (err) {
-    return await fetchJson(directUrl);
-  }
-}
-
-async function getCurrentWeather(latitude, longitude) {
-  const proxyUrl = `${PROXY_URL}/weather/current?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`;
-  const directUrl = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`;
-
-  try {
-    return await fetchJson(proxyUrl);
-  } catch (err) {
-    return await fetchJson(directUrl);
-  }
-}
-
 async function fetchWeather(cityName) {
   if (!weatherResult) return;
 
   weatherResult.innerHTML = '<div class="weather-state">در حال جستجو...</div>';
 
   try {
-    const geoData = await getGeocode(cityName);
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=fa&format=json`
+    );
+
+    const geoData = await geoRes.json();
 
     if (!geoData.results || geoData.results.length === 0) {
       weatherResult.innerHTML =
@@ -645,8 +445,12 @@ async function fetchWeather(cityName) {
     }
 
     const place = geoData.results[0];
-    const weatherData = await getCurrentWeather(place.latitude, place.longitude);
 
+    const weatherRes = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`
+    );
+
+    const weatherData = await weatherRes.json();
     const current = weatherData.current;
     const [label, icon] = describeWeatherCode(current.weather_code);
 
@@ -675,14 +479,14 @@ async function fetchWeather(cityName) {
   }
 }
 
-// ---------- 15. راه‌اندازی اولیه ----------
+// ---------- 14. راه‌اندازی ----------
 function init() {
   setActiveProvider(currentProvider);
   updateStatusDots();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {
-      // اگر ثبت نشد، اپ همچنان کار می‌کند
+      // اگر Service Worker ثبت نشد، اپ همچنان کار می‌کند
     });
   }
 }
