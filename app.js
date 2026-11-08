@@ -1,184 +1,141 @@
 /* =========================================================
-   app.js
-   منطق اصلی اپلیکیشن. هر بخش با توضیح فارسی مشخص شده
-   تا بتونی قدم به قدم بفهمی هر تیکه کد چیکار می‌کنه.
+   app.js  (نسخه‌ی فقط-Gemini)
+   چت با Gemini + آب‌وهوا. همه‌ی درخواست‌ها از Cloudflare Worker رد می‌شن
+   و هیچ کلیدی روی دستگاه کاربر نیست.
    ========================================================= */
 
-// ---------- ۱. گرفتن ارجاع به المان‌های HTML ----------
-const chatArea = document.getElementById('chatArea');
-const emptyState = document.getElementById('emptyState');
-const userInput = document.getElementById('userInput');
-const sendBtn = document.getElementById('sendBtn');
-const modelSwitcher = document.getElementById('modelSwitcher');
-const settingsBtn = document.getElementById('settingsBtn');
-const closeSettings = document.getElementById('closeSettings');
-const settingsOverlay = document.getElementById('settingsOverlay');
-const saveKeysBtn = document.getElementById('saveKeys');
+'use strict';
 
-const anthropicKeyInput = document.getElementById('anthropicKey');
-const openaiKeyInput = document.getElementById('openaiKey');
-const googleKeyInput = document.getElementById('googleKey');
+// آدرس Worker شما
+const PROXY_URL = 'https://flat-math-35b6.mahmoodgh20471.workers.dev';
 
-// ---------- ۲. وضعیت برنامه (State) ----------
-// provider فعلی که کاربر انتخاب کرده. پیش‌فرض: anthropic
-let currentProvider = localStorage.getItem('lastProvider') || 'anthropic';
+// ---------- پاک‌سازی بقایای نسخه‌های قبلی ----------
+// سرویس‌ورکر و کش قدیمی (که باعث می‌شد آپدیت‌ها دیر برسن) رو حذف می‌کنه
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations()
+    .then((regs) => regs.forEach((r) => r.unregister()))
+    .catch(() => {});
+}
+if (window.caches) {
+  caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+}
+// کلیدهای API که نسخه‌های قبلی توی مرورگر ذخیره کرده بودن رو هم پاک کن
+try {
+  ['key_anthropic', 'key_openai', 'key_google', 'lastProvider'].forEach((k) => localStorage.removeItem(k));
+} catch (e) {}
 
-// تاریخچه‌ی پیام‌ها برای هر provider جدا نگه داشته می‌شه
-// چون هر مدل باید فقط مکالمه‌ی خودش رو به یاد داشته باشه
-let conversations = {
-  anthropic: [],
-  openai: [],
-  google: []
-};
+// ---------- المان‌ها ----------
+const $ = (id) => document.getElementById(id);
+const chatArea = $('chatArea');
+const userInput = $('userInput');
+const sendBtn = $('sendBtn');
+const clearBtn = $('clearBtn');
+const weatherBtn = $('weatherBtn');
+const weatherOverlay = $('weatherOverlay');
+const closeWeather = $('closeWeather');
+const citySearch = $('citySearch');
+const citySearchBtn = $('citySearchBtn');
+const cityChips = $('cityChips');
+const weatherResult = $('weatherResult');
 
-// ---------- ۳. توابع کمکی برای ذخیره و خواندن کلیدها ----------
-function getKeys() {
-  return {
-    anthropic: localStorage.getItem('key_anthropic') || '',
-    openai: localStorage.getItem('key_openai') || '',
-    google: localStorage.getItem('key_google') || ''
-  };
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
 }
 
-function saveKeys() {
-  localStorage.setItem('key_anthropic', anthropicKeyInput.value.trim());
-  localStorage.setItem('key_openai', openaiKeyInput.value.trim());
-  localStorage.setItem('key_google', googleKeyInput.value.trim());
-  updateStatusDots();
-  closeSettingsPanel();
+// ---------- ارتباط با Worker ----------
+async function callProxy(route, payload) {
+  let res;
+  try {
+    res = await fetch(`${PROXY_URL}/proxy/${route}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload })
+    });
+  } catch (e) {
+    throw new Error('اتصال به سرور برقرار نشد. اینترنتت رو چک کن.');
+  }
+
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* جواب JSON نبود */ }
+
+  if (!res.ok) {
+    let detail = data && data.error;
+    if (detail && typeof detail === 'object') detail = detail.message || JSON.stringify(detail);
+    throw new Error(detail || `خطای سرور (${res.status})`);
+  }
+  return data;
 }
 
-// وقتی صفحه بالا میاد، کلیدهای ذخیره‌شده رو داخل اینپوت‌ها بریز
-function loadKeysIntoInputs() {
-  const keys = getKeys();
-  anthropicKeyInput.value = keys.anthropic;
-  openaiKeyInput.value = keys.openai;
-  googleKeyInput.value = keys.google;
-}
+// ---------- چت ----------
+let history = []; // [{ role: 'user' | 'assistant', content: '...' }]
 
-// دایره‌ی سبز کنار اسم هر مدل رو روشن/خاموش کن بسته به اینکه کلید داره یا نه
-function updateStatusDots() {
-  const keys = getKeys();
-  document.querySelectorAll('.status-dot').forEach(dot => {
-    const provider = dot.dataset.status;
-    dot.classList.toggle('ready', Boolean(keys[provider]));
-  });
-}
-
-// ---------- ۴. مدیریت پنل تنظیمات (باز/بسته کردن) ----------
-function openSettingsPanel() {
-  loadKeysIntoInputs();
-  settingsOverlay.classList.add('open');
-}
-
-function closeSettingsPanel() {
-  settingsOverlay.classList.remove('open');
-}
-
-settingsBtn.addEventListener('click', openSettingsPanel);
-closeSettings.addEventListener('click', closeSettingsPanel);
-settingsOverlay.addEventListener('click', (e) => {
-  if (e.target === settingsOverlay) closeSettingsPanel();
-});
-saveKeysBtn.addEventListener('click', saveKeys);
-
-// ---------- ۵. سوییچ کردن بین مدل‌ها ----------
-function setActiveProvider(provider) {
-  currentProvider = provider;
-  localStorage.setItem('lastProvider', provider);
-
-  document.querySelectorAll('.preset').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.provider === provider);
-  });
-
-  renderConversation();
-}
-
-modelSwitcher.addEventListener('click', (e) => {
-  const btn = e.target.closest('.preset');
-  if (!btn) return;
-  setActiveProvider(btn.dataset.provider);
-});
-
-// ---------- ۶. نمایش پیام‌ها در صفحه ----------
-function renderConversation() {
+function renderChat() {
   chatArea.innerHTML = '';
-  const msgs = conversations[currentProvider];
 
-  if (msgs.length === 0) {
-    chatArea.appendChild(emptyState);
+  if (history.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'سلام! هر سوالی داری بپرس.';
+    chatArea.appendChild(empty);
     return;
   }
 
-  msgs.forEach(msg => {
+  history.forEach((m) => {
     const bubble = document.createElement('div');
-    bubble.className = `msg ${msg.role}`;
-    bubble.textContent = msg.content;
+    bubble.className = `msg ${m.role}`;
+    bubble.textContent = m.content;
     chatArea.appendChild(bubble);
   });
-
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-function addMessage(role, content) {
-  conversations[currentProvider].push({ role, content });
-  renderConversation();
-}
-
-function addLoadingBubble() {
+function addTransientBubble(className, text) {
   const bubble = document.createElement('div');
-  bubble.className = 'msg loading';
-  bubble.id = 'loadingBubble';
-  bubble.textContent = 'در حال فکر کردن...';
-  chatArea.appendChild(bubble);
-  chatArea.scrollTop = chatArea.scrollHeight;
-}
-
-function removeLoadingBubble() {
-  const bubble = document.getElementById('loadingBubble');
-  if (bubble) bubble.remove();
-}
-
-function addErrorBubble(text) {
-  const bubble = document.createElement('div');
-  bubble.className = 'msg error';
+  bubble.className = `msg ${className}`;
   bubble.textContent = text;
   chatArea.appendChild(bubble);
   chatArea.scrollTop = chatArea.scrollHeight;
+  return bubble;
 }
 
-// ---------- ۷. ارسال پیام و صدا زدن API درست ----------
 async function handleSend() {
   const text = userInput.value.trim();
-  if (!text) return;
+  if (!text || sendBtn.disabled) return;
 
-  const keys = getKeys();
-  if (!keys[currentProvider]) {
-    addErrorBubble('اول باید کلید API این مدل رو در تنظیمات وارد کنی.');
-    return;
-  }
-
-  addMessage('user', text);
+  history.push({ role: 'user', content: text });
   userInput.value = '';
   userInput.style.height = 'auto';
+  renderChat();
+
   sendBtn.disabled = true;
-  addLoadingBubble();
+  const loading = addTransientBubble('loading', 'در حال فکر کردن...');
 
   try {
-    let reply;
-    if (currentProvider === 'anthropic') {
-      reply = await callAnthropic(keys.anthropic);
-    } else if (currentProvider === 'openai') {
-      reply = await callOpenAI(keys.openai);
-    } else if (currentProvider === 'google') {
-      reply = await callGoogle(keys.google);
-    }
-    removeLoadingBubble();
-    addMessage('assistant', reply);
+    const data = await callProxy('google', {
+      contents: history.map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }))
+    });
+
+    const parts = data && data.candidates && data.candidates[0] &&
+      data.candidates[0].content && data.candidates[0].content.parts;
+    const reply = parts ? parts.map((p) => p.text || '').join('') : '';
+
+    if (!reply) throw new Error('Gemini جوابی برنگردوند. سوالت رو طور دیگه‌ای بپرس.');
+
+    history.push({ role: 'assistant', content: reply });
+    renderChat();
   } catch (err) {
-    removeLoadingBubble();
-    addErrorBubble('خطا: ' + err.message);
+    // پیام ناموفق رو از تاریخچه بردار و توی کادر برگردون تا بتونی دوباره بفرستی
+    history.pop();
+    renderChat();
+    userInput.value = text;
+    addTransientBubble('error', err.message);
   } finally {
+    loading.remove();
     sendBtn.disabled = false;
   }
 }
@@ -190,93 +147,103 @@ userInput.addEventListener('keydown', (e) => {
     handleSend();
   }
 });
-
-// بزرگ شدن خودکار جعبه‌ی متن وقتی چند خطی می‌شه
 userInput.addEventListener('input', () => {
   userInput.style.height = 'auto';
   userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
 });
+clearBtn.addEventListener('click', () => {
+  history = [];
+  renderChat();
+});
 
-// ---------- ۸. تابع‌های اختصاصی هر ارائه‌دهنده‌ی هوش مصنوعی ----------
-// همه از یک سرور واسط آنلاین (Cloudflare Worker) عبور می‌کنن تا مشکل CORS مرورگر حل بشه.
-// این یعنی دیگه لازم نیست هیچ ترمینالی روی کامپیوترت باز باشه.
-const PROXY_URL = 'https://flat-math-35b6.mahmoodgh20471.workers.dev';
+// ---------- آب‌وهوا ----------
+const openWeather = () => weatherOverlay.classList.add('open');
+const closeWeatherPanel = () => weatherOverlay.classList.remove('open');
 
-// تابع مشترک: پیام رو به آدرس /proxy/<provider> می‌فرسته
-async function callProxy(provider, apiKey, payload) {
-  let res;
+weatherBtn.addEventListener('click', openWeather);
+closeWeather.addEventListener('click', closeWeatherPanel);
+weatherOverlay.addEventListener('click', (e) => {
+  if (e.target === weatherOverlay) closeWeatherPanel();
+});
+
+cityChips.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  citySearch.value = chip.dataset.city;
+  fetchWeather(chip.dataset.city);
+});
+citySearchBtn.addEventListener('click', () => {
+  if (citySearch.value.trim()) fetchWeather(citySearch.value.trim());
+});
+citySearch.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && citySearch.value.trim()) fetchWeather(citySearch.value.trim());
+});
+
+// کد وضعیت هوا -> [توضیح فارسی، آیکون روز، آیکون شب]
+const WEATHER_CODES = {
+  0:  ['آسمان صاف', '☀️', '🌙'],
+  1:  ['تقریباً صاف', '🌤️', '🌙'],
+  2:  ['نیمه‌ابری', '⛅', '☁️'],
+  3:  ['ابری', '☁️', '☁️'],
+  45: ['مه', '🌫️', '🌫️'],
+  48: ['مه یخ‌زده', '🌫️', '🌫️'],
+  51: ['نم‌نم باران', '🌦️', '🌧️'],
+  53: ['نم‌نم باران', '🌦️', '🌧️'],
+  55: ['نم‌نم شدید', '🌧️', '🌧️'],
+  56: ['نم‌نم یخ‌زده', '🌧️', '🌧️'],
+  57: ['نم‌نم یخ‌زده', '🌧️', '🌧️'],
+  61: ['باران سبک', '🌦️', '🌧️'],
+  63: ['باران', '🌧️', '🌧️'],
+  65: ['باران شدید', '🌧️', '🌧️'],
+  66: ['باران یخ‌زده', '🌧️', '🌧️'],
+  67: ['باران یخ‌زده شدید', '🌧️', '🌧️'],
+  71: ['برف سبک', '🌨️', '🌨️'],
+  73: ['برف', '❄️', '❄️'],
+  75: ['برف شدید', '❄️', '❄️'],
+  77: ['دانه‌های برف', '🌨️', '🌨️'],
+  80: ['رگبار سبک', '🌦️', '🌧️'],
+  81: ['رگبار', '🌧️', '🌧️'],
+  82: ['رگبار شدید', '⛈️', '⛈️'],
+  85: ['بارش برف', '🌨️', '🌨️'],
+  86: ['بارش برف شدید', '❄️', '❄️'],
+  95: ['رعدوبرق', '⛈️', '⛈️'],
+  96: ['رعدوبرق با تگرگ', '⛈️', '⛈️'],
+  99: ['رعدوبرق شدید با تگرگ', '⛈️', '⛈️']
+};
+
+function describeWeather(code, isDay) {
+  const entry = WEATHER_CODES[code] || ['نامشخص', '🌡️', '🌡️'];
+  return { label: entry[0], icon: isDay ? entry[1] : entry[2] };
+}
+
+async function fetchWeather(city) {
+  weatherResult.innerHTML = '<div class="weather-state">در حال دریافت...</div>';
+
   try {
-    res = await fetch(`${PROXY_URL}/proxy/${provider}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, payload })
-    });
-  } catch (e) {
-    throw new Error('نمی‌تونم به proxy وصل بشم. اتصال اینترنتت رو چک کن.');
-  }
+    const data = await callProxy('weather', { city });
+    const c = data.current;
+    const { label, icon } = describeWeather(c.weather_code, c.is_day === 1);
+    const name = [data.place.name, data.place.admin1, data.place.country].filter(Boolean).join('، ');
+    const range = (data.max != null && data.min != null)
+      ? `<div class="range">↑ ${Math.round(data.max)}°  ↓ ${Math.round(data.min)}°</div>`
+      : '';
 
-  const data = await res.json();
-  if (!res.ok) {
-    const detail = data.error || JSON.stringify(data).slice(0, 200);
-    throw new Error(`${provider} (${res.status}): ${detail}`);
-  }
-  return data;
-}
-
-// --- Anthropic (Claude) ---
-async function callAnthropic(apiKey) {
-  const history = conversations.anthropic.map(m => ({
-    role: m.role === 'assistant' ? 'assistant' : 'user',
-    content: m.content
-  }));
-
-  const data = await callProxy('anthropic', apiKey, {
-    model: 'claude-sonnet-5',
-    max_tokens: 1024,
-    messages: history
-  });
-
-  return data.content.map(block => block.text || '').join('\n');
-}
-
-// --- OpenAI (GPT) ---
-async function callOpenAI(apiKey) {
-  const history = conversations.openai.map(m => ({
-    role: m.role === 'assistant' ? 'assistant' : 'user',
-    content: m.content
-  }));
-
-  const data = await callProxy('openai', apiKey, {
-    model: 'gpt-4o-mini',
-    messages: history
-  });
-
-  return data.choices[0].message.content;
-}
-
-// --- Google (Gemini) ---
-async function callGoogle(apiKey) {
-  const history = conversations.google.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }]
-  }));
-
-  const data = await callProxy('google', apiKey, { contents: history });
-
-  return data.candidates[0].content.parts[0].text;
-}
-
-// ---------- ۹. راه‌اندازی اولیه هنگام باز شدن صفحه ----------
-function init() {
-  setActiveProvider(currentProvider);
-  updateStatusDots();
-
-  // ثبت Service Worker برای قابلیت نصب و کارکرد آفلاین
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {
-      // اگر ثبت نشد، مشکلی نیست، اپ همچنان کار می‌کنه فقط بدون کش آفلاین
-    });
+    weatherResult.innerHTML = `
+      <div class="weather-card">
+        <div class="city-name">${escapeHtml(name)}</div>
+        <div class="weather-icon">${icon}</div>
+        <div class="temp">${Math.round(c.temperature_2m)}°C</div>
+        <div class="condition">${escapeHtml(label)}</div>
+        ${range}
+        <div class="weather-meta">
+          <span>💧 رطوبت ${Math.round(c.relative_humidity_2m)}٪</span>
+          <span>💨 باد ${Math.round(c.wind_speed_10m)} km/h</span>
+        </div>
+      </div>`;
+  } catch (err) {
+    weatherResult.innerHTML = `<div class="weather-state error">${escapeHtml(err.message)}</div>`;
   }
 }
 
-init();
+// ---------- شروع ----------
+renderChat();
