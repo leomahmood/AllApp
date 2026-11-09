@@ -37,6 +37,14 @@ const citySearch = $('citySearch');
 const citySearchBtn = $('citySearchBtn');
 const cityChips = $('cityChips');
 const weatherResult = $('weatherResult');
+const settingsBtn = $('settingsBtn');
+const settingsOverlay = $('settingsOverlay');
+const closeSettings = $('closeSettings');
+const userKeyInput = $('userKeyInput');
+const saveKeyBtn = $('saveKeyBtn');
+const removeKeyBtn = $('removeKeyBtn');
+const keyStatus = $('keyStatus');
+const pillText = $('pillText');
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => (
@@ -44,14 +52,60 @@ function escapeHtml(s) {
   ));
 }
 
+// ---------- کلید شخصی Gemini (اختیاری) ----------
+const USER_KEY_STORAGE = 'gemini_user_key';
+
+function getUserKey() {
+  try { return (localStorage.getItem(USER_KEY_STORAGE) || '').trim(); } catch (e) { return ''; }
+}
+
+function updateKeyUi() {
+  const has = getUserKey().length > 0;
+  pillText.textContent = has ? 'Gemini · کلید شخصی' : 'Gemini';
+  keyStatus.textContent = has ? 'کلید شخصی فعاله.' : 'الان از کلیدهای خود اپ استفاده می‌شه.';
+}
+
+settingsBtn.addEventListener('click', () => {
+  userKeyInput.value = '';
+  updateKeyUi();
+  settingsOverlay.classList.add('open');
+});
+closeSettings.addEventListener('click', () => settingsOverlay.classList.remove('open'));
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+});
+
+saveKeyBtn.addEventListener('click', () => {
+  const k = userKeyInput.value.trim();
+  if (!k) { keyStatus.textContent = 'اول کلید رو وارد کن.'; return; }
+  try { localStorage.setItem(USER_KEY_STORAGE, k); } catch (e) {
+    keyStatus.textContent = 'ذخیره‌ی کلید توی این مرورگر ممکن نشد.';
+    return;
+  }
+  userKeyInput.value = '';
+  updateKeyUi();
+});
+
+removeKeyBtn.addEventListener('click', () => {
+  try { localStorage.removeItem(USER_KEY_STORAGE); } catch (e) {}
+  userKeyInput.value = '';
+  updateKeyUi();
+});
+
 // ---------- ارتباط با Worker ----------
 async function callProxy(route, payload) {
   let res;
+  const body = { payload };
+  if (route === 'google') {
+    const k = getUserKey();
+    if (k) body.userKey = k; // کلید شخصی کاربر (اگه گذاشته باشه)
+  }
+
   try {
     res = await fetch(`${PROXY_URL}/proxy/${route}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ payload })
+      body: JSON.stringify(body)
     });
   } catch (e) {
     throw new Error('اتصال به سرور برقرار نشد. اینترنتت رو چک کن.');
@@ -247,3 +301,4 @@ async function fetchWeather(city) {
 
 // ---------- شروع ----------
 renderChat();
+updateKeyUi();

@@ -19,12 +19,13 @@
     </div>
     <div class="header-actions">
       <button id="weatherBtn" class="icon-btn" aria-label="آب و هوا">☁</button>
+      <button id="settingsBtn" class="icon-btn" aria-label="تنظیمات">⚙</button>
       <button id="clearBtn" class="icon-btn" aria-label="گفتگوی جدید">✚</button>
     </div>
   </header>
 
   <div class="model-bar">
-    <span class="pill"><span class="status-dot"></span>Gemini</span>
+    <span class="pill"><span class="status-dot"></span><span id="pillText">Gemini</span></span>
   </div>
 
   <main class="chat-area" id="chatArea"></main>
@@ -59,6 +60,29 @@
       </div>
 
       <div id="weatherResult" class="weather-result"></div>
+    </div>
+  </div>
+
+  <!-- پنل تنظیمات: کلید شخصی Gemini (اختیاری) -->
+  <div class="sheet-overlay" id="settingsOverlay">
+    <div class="sheet">
+      <div class="sheet-header">
+        <h2>کلید شخصی Gemini</h2>
+        <button id="closeSettings" class="icon-btn" aria-label="بستن">✕</button>
+      </div>
+
+      <p class="hint">اختیاریه. اگه کلید خودت رو بذاری، چت با همون انجام می‌شه و سقف مصرف خودت حساب می‌شه. بدون کلید، از کلیدهای خود اپ استفاده می‌شه.</p>
+      <p class="hint">کلید رو از aistudio.google.com/apikey بگیر.</p>
+
+      <input type="password" id="userKeyInput" class="key-input" placeholder="کلید Gemini رو اینجا بذار" autocomplete="off" spellcheck="false" />
+
+      <div class="key-actions">
+        <button id="saveKeyBtn" class="primary-btn">ذخیره</button>
+        <button id="removeKeyBtn" class="ghost-btn">حذف کلید</button>
+      </div>
+
+      <p class="hint" id="keyStatus"></p>
+      <p class="hint">کلید فقط توی مرورگر خودت ذخیره می‌شه. موقع چت از سرور اپ رد می‌شه تا به Gemini برسه، ولی سرور ذخیره‌اش نمی‌کنه.</p>
     </div>
   </div>
 

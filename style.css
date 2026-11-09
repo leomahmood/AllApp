@@ -283,3 +283,35 @@ body {
 
 .weather-state { text-align: center; color: var(--text-dim); font-size: 14px; padding: 20px 0; }
 .weather-state.error { color: var(--danger); }
+
+/* ---------- تنظیمات: کلید شخصی ---------- */
+.hint { font-size: 13px; color: var(--text-dim); line-height: 1.9; margin: 0 0 10px; }
+
+.key-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  direction: ltr;
+  margin: 6px 0 12px;
+}
+.key-input:focus { outline: none; border-color: var(--accent); }
+
+.key-actions { display: flex; gap: 10px; margin-bottom: 12px; }
+
+.primary-btn, .ghost-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.primary-btn { background: var(--accent); color: #fff; border: none; }
+.ghost-btn { background: none; color: var(--text); border: 1px solid var(--border); }
+.primary-btn:active, .ghost-btn:active { transform: scale(0.98); }
