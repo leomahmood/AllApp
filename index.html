@@ -1,91 +1,1057 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="light">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>هاب هوش مصنوعی</title>
-  <meta name="theme-color" content="#1C1B1F" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Gemini · هاب هوش مصنوعی</title>
+<meta name="theme-color" content="#ffffff" id="metaTheme">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>
+/* تم رو قبل از اولین نقاشی صفحه اعمال می‌کنه تا چشمک نزنه */
+(function () {
+  try {
+    var t = localStorage.getItem('hub_theme') || 'auto';
+    var dark = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  } catch (e) {}
+})();
+</script>
+<style>
+:root {
+  --accent: #3390ec;
+  --header-bg: #ffffff;
+  --header-text: #000000;
+  --sub: #707579;
+  --status: #3390ec;
+  --chat-bg: #cddbe6;
+  --pattern: radial-gradient(rgba(0, 0, 0, 0.045) 1.2px, transparent 1.2px);
+  --bubble-in: #ffffff;
+  --bubble-out: #eeffde;
+  --text: #0b0b0b;
+  --time-in: #a0acb6;
+  --time-out: #4fae4e;
+  --composer-bg: #ffffff;
+  --sheet-bg: #ffffff;
+  --sheet-text: #0b0b0b;
+  --input-bg: #f4f5f7;
+  --border: rgba(0, 0, 0, 0.09);
+  --chip-bg: #eef1f4;
+  --danger: #e04b48;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --accent: #6ab3f3;
+  --header-bg: #17212b;
+  --header-text: #ffffff;
+  --sub: #6d7f8f;
+  --status: #6ab3f3;
+  --chat-bg: #0e1621;
+  --pattern: radial-gradient(rgba(255, 255, 255, 0.04) 1.2px, transparent 1.2px);
+  --bubble-in: #182533;
+  --bubble-out: #2b5278;
+  --text: #f5f5f5;
+  --time-in: #6d7f8f;
+  --time-out: #8cb4de;
+  --composer-bg: #17212b;
+  --sheet-bg: #17212b;
+  --sheet-text: #f5f5f5;
+  --input-bg: #0e1621;
+  --border: rgba(255, 255, 255, 0.09);
+  --chip-bg: #0e1621;
+  --danger: #ec6f6c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body {
+  overflow: hidden;
+  background: var(--chat-bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Tahoma, "Noto Sans Arabic", "Noto Naskh Arabic", sans-serif;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+svg { display: block; }
+
+.fatal {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 99;
+  background: #b3261e; color: #fff; padding: 10px 14px; font-size: 13px;
+  direction: rtl; word-break: break-word;
+}
+
+.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+/* ---------- هدر ---------- */
+.topbar {
+  direction: ltr;
+  display: flex; align-items: center; gap: 6px;
+  padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
+  background: var(--header-bg); color: var(--header-text);
+  box-shadow: 0 1px 0 var(--border);
+  flex-shrink: 0; z-index: 3;
+}
+.avatar {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; margin-right: 6px;
+  background: linear-gradient(135deg, #6ab3f3, #3390ec);
+  display: grid; place-items: center; color: #fff; font-size: 21px;
+}
+.who { flex: 1; min-width: 0; text-align: left; }
+.who .name { font-weight: 600; font-size: 16px; line-height: 1.25; }
+.who .status {
+  font-size: 13px; line-height: 1.35; color: var(--sub);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext;
+}
+.who .status.live { color: var(--status); }
+.ibtn {
+  width: 42px; height: 42px; border: 0; background: transparent; border-radius: 50%;
+  display: grid; place-items: center; color: var(--sub); flex-shrink: 0;
+}
+.ibtn:hover, .ibtn:active { background: var(--border); }
+.ibtn svg { width: 24px; height: 24px; }
+
+/* ---------- گفتگو ---------- */
+.chatwrap { position: relative; flex: 1; min-height: 0; display: flex; }
+.chat {
+  flex: 1; min-width: 0; overflow-y: auto; overscroll-behavior: contain;
+  direction: ltr; display: flex; flex-direction: column; gap: 3px;
+  padding: 10px max(10px, calc((100% - 760px) / 2)) 8px;
+  background-color: var(--chat-bg); background-image: var(--pattern); background-size: 24px 24px;
+}
+.day {
+  align-self: center; margin: 10px 0 6px; padding: 3px 12px; border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28); color: #fff; font-size: 12.5px; direction: rtl;
+}
+.msg {
+  position: relative; max-width: min(84%, 520px); padding: 7px 11px 5px;
+  border-radius: 15px; font-size: 15.5px; line-height: 1.7; box-shadow: var(--shadow);
+  color: var(--text);
+}
+.msg.first { margin-top: 7px; }
+.msg.out { align-self: flex-end; background: var(--bubble-out); border-bottom-right-radius: 5px; }
+.msg.in  { align-self: flex-start; background: var(--bubble-in); border-bottom-left-radius: 5px; }
+.msg.tail::after { content: ""; position: absolute; bottom: 0; width: 9px; height: 12px; }
+.msg.out.tail::after { right: -8px; background: var(--bubble-out); clip-path: polygon(0 0, 0 100%, 100% 100%); }
+.msg.in.tail::after  { left: -8px;  background: var(--bubble-in);  clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.msg .text { white-space: pre-wrap; overflow-wrap: anywhere; text-align: start; unicode-bidi: plaintext; }
+.msg .text strong { font-weight: 700; }
+.msg .text a { color: var(--accent); text-decoration: none; }
+.msg .text a:hover { text-decoration: underline; }
+.msg .text code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13.5px;
+  background: rgba(127, 127, 127, 0.18); padding: 1px 5px; border-radius: 5px; direction: ltr; unicode-bidi: embed;
+}
+.msg .text pre {
+  white-space: pre; direction: ltr; text-align: left; overflow-x: auto; margin: 6px 0;
+  background: rgba(127, 127, 127, 0.16); padding: 9px 11px; border-radius: 9px;
+}
+.msg .text pre code { background: none; padding: 0; font-size: 13px; }
+.meta {
+  direction: ltr; display: flex; justify-content: flex-end; align-items: center; gap: 4px;
+  margin-top: 2px; font-size: 11.5px; line-height: 1.2; color: var(--time-in);
+}
+.msg.out .meta { color: var(--time-out); }
+.ticks { font-size: 12px; letter-spacing: -3px; margin-right: 3px; }
+.copy { border: 0; background: none; padding: 2px; color: inherit; opacity: 0.85; border-radius: 6px; }
+.copy:hover { opacity: 1; background: var(--border); }
+.copy svg { width: 14px; height: 14px; }
+
+.dots { display: flex; gap: 4px; padding: 7px 4px 5px; }
+.dots i {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--time-in);
+  animation: blink 1.2s infinite ease-in-out;
+}
+.dots i:nth-child(2) { animation-delay: 0.2s; }
+.dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: 0.6; } }
+
+.intro {
+  direction: rtl; margin: auto; text-align: center; width: min(320px, 100%);
+  background: var(--bubble-in); border-radius: 18px; padding: 20px 16px 16px; box-shadow: var(--shadow);
+}
+.intro .big {
+  width: 68px; height: 68px; margin: 0 auto 10px; border-radius: 50%; color: #fff; font-size: 34px;
+  background: linear-gradient(135deg, #6ab3f3, #3390ec); display: grid; place-items: center;
+}
+.intro h2 { font-size: 17px; margin: 0 0 4px; }
+.intro p { margin: 0 0 14px; color: var(--sub); font-size: 14px; line-height: 1.9; }
+.sugg { display: flex; flex-direction: column; gap: 7px; }
+.sugg button { border: 0; background: var(--chip-bg); color: var(--accent); padding: 9px 12px; border-radius: 12px; font-size: 14px; }
+
+.fab {
+  position: absolute; right: 14px; bottom: 12px; width: 42px; height: 42px; border-radius: 50%;
+  border: 0; background: var(--composer-bg); color: var(--sub); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  display: grid; place-items: center;
+}
+.fab svg { width: 22px; height: 22px; }
+
+/* ---------- اعلان خطا ---------- */
+.notice {
+  direction: rtl; display: flex; align-items: flex-start; gap: 8px;
+  margin: 0 max(10px, calc((100% - 760px) / 2)) 6px; padding: 9px 12px;
+  background: var(--danger); color: #fff; border-radius: 12px; font-size: 14px; line-height: 1.7;
+}
+.notice span { flex: 1; }
+.notice button { border: 0; background: none; color: #fff; padding: 0 2px; font-size: 16px; line-height: 1.4; }
+
+/* ---------- نوار پیام ---------- */
+.composer {
+  direction: ltr; display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0;
+  padding: 6px max(8px, calc((100% - 760px) / 2)) calc(8px + env(safe-area-inset-bottom));
+}
+.inputwrap {
+  flex: 1; min-width: 0; background: var(--composer-bg); border-radius: 23px;
+  box-shadow: var(--shadow); padding: 0 16px; display: flex; align-items: flex-end;
+}
+.inputwrap textarea {
+  width: 100%; border: 0; outline: 0; resize: none; background: transparent; color: var(--text);
+  font: inherit; font-size: 16px; line-height: 1.5; padding: 11px 0; max-height: 140px;
+}
+.inputwrap textarea::placeholder { color: var(--sub); }
+.send {
+  width: 46px; height: 46px; border-radius: 50%; border: 0; flex-shrink: 0;
+  background: var(--accent); color: #fff; display: grid; place-items: center; box-shadow: var(--shadow);
+  transition: opacity 0.15s, transform 0.1s;
+}
+.send:active:not(:disabled) { transform: scale(0.93); }
+.send:disabled { opacity: 0.5; }
+.send svg { width: 22px; height: 22px; margin-left: 2px; }
+
+/* ---------- پنل‌های کشویی ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0s 0.2s;
+}
+.overlay.open { opacity: 1; visibility: visible; transition: opacity 0.2s; }
+.sheet {
+  direction: rtl; width: 100%; max-width: 560px; max-height: 88vh; max-height: 88dvh; overflow-y: auto;
+  background: var(--sheet-bg); color: var(--sheet-text);
+  border-radius: 18px 18px 0 0; padding: 6px 18px calc(18px + env(safe-area-inset-bottom));
+  transform: translateY(24px); transition: transform 0.2s;
+}
+.overlay.open .sheet { transform: none; }
+.grab { width: 38px; height: 4px; border-radius: 2px; background: rgba(128, 128, 128, 0.45); margin: 6px auto 8px; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 12px; }
+.sheet-head h2 { font-size: 17px; margin: 0; }
+.sheet-head .ibtn { width: 36px; height: 36px; }
+.field {
+  width: 100%; background: var(--input-bg); color: var(--sheet-text);
+  border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; font: inherit; font-size: 16px;
+}
+.field:focus { outline: 0; border-color: var(--accent); }
+.ltr { direction: ltr; text-align: left; }
+.hint { font-size: 13px; line-height: 1.9; color: var(--sub); margin: 0 0 10px; }
+.label { font-size: 13.5px; font-weight: 600; margin: 16px 0 8px; }
+.row { display: flex; gap: 8px; }
+.btn { border: 0; border-radius: 12px; padding: 11px 14px; font-weight: 600; font-size: 15px; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.ghost { background: var(--chip-bg); color: var(--sheet-text); }
+.btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--border); }
+.btn.grow { flex: 1; }
+.btn.full { width: 100%; }
+.seg { display: flex; gap: 3px; padding: 3px; background: var(--chip-bg); border-radius: 12px; }
+.seg button { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 8px; font-size: 14px; color: var(--sheet-text); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.state { font-size: 13px; color: var(--sub); line-height: 1.8; margin: 8px 0 0; min-height: 1.2em; }
+.state.ok { color: #3aa655; }
+.state.err { color: var(--danger); }
+.ver { text-align: center; font-size: 12px; color: var(--sub); margin-top: 18px; direction: ltr; }
+
+/* ---------- آب‌وهوا ---------- */
+.w-search { display: flex; gap: 8px; margin-bottom: 12px; }
+.w-search .field { flex: 1; min-width: 0; }
+.w-search .btn { padding: 0 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip { border: 0; background: var(--chip-bg); color: var(--sheet-text); padding: 7px 14px; border-radius: 999px; font-size: 13.5px; }
+.chip:active { background: var(--accent); color: #fff; }
+.w-state { text-align: center; color: var(--sub); font-size: 14px; padding: 22px 0; }
+.w-state.err { color: var(--danger); }
+.w-card { text-align: center; background: var(--input-bg); border: 1px solid var(--border); border-radius: 18px; padding: 20px 16px; }
+.w-city { font-size: 16px; font-weight: 700; }
+.w-icon { font-size: 64px; line-height: 1.2; margin: 6px 0 2px; }
+.w-temp { font-size: 46px; font-weight: 500; color: var(--accent); direction: ltr; }
+.w-cond { color: var(--sub); font-size: 15px; margin-top: 2px; }
+.w-range { color: var(--sub); font-size: 13.5px; margin-top: 8px; direction: ltr; }
+.w-meta { display: flex; justify-content: center; gap: 22px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13.5px; color: var(--sub); }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); z-index: 40;
+  transform: translate(-50%, 10px); opacity: 0; pointer-events: none;
+  background: rgba(30, 30, 30, 0.92); color: #fff; padding: 8px 16px; border-radius: 16px; font-size: 14px;
+  transition: opacity 0.2s, transform 0.2s; direction: rtl; max-width: 86vw; text-align: center;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
 </head>
 <body>
+<div id="fatal" class="fatal" hidden></div>
 
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-dot"></span>
-      <h1>هاب هوش مصنوعی</h1>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="avatar" aria-hidden="true">✦</div>
+    <div class="who">
+      <div class="name">Gemini</div>
+      <div class="status live" id="status" dir="auto">آنلاین</div>
     </div>
-    <div class="header-actions">
-      <button id="weatherBtn" class="icon-btn" aria-label="آب و هوا">☁</button>
-      <button id="settingsBtn" class="icon-btn" aria-label="تنظیمات">⚙</button>
-      <button id="clearBtn" class="icon-btn" aria-label="گفتگوی جدید">✚</button>
-    </div>
+    <button class="ibtn" id="weatherBtn" aria-label="آب و هوا" title="آب و هوا">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19a4.5 4.5 0 0 1-.4-8.98A6 6 0 0 1 18 11.2 4 4 0 0 1 17 19H7z"/></svg>
+    </button>
+    <button class="ibtn" id="menuBtn" aria-label="تنظیمات" title="تنظیمات">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>
+    </button>
   </header>
 
-  <div class="model-bar">
-    <span class="pill"><span class="status-dot"></span><span id="pillText">Gemini</span></span>
+  <div class="chatwrap">
+    <main class="chat" id="chat" role="log" aria-live="polite" aria-label="گفتگو"></main>
+    <button class="fab" id="toBottom" aria-label="رفتن به آخرین پیام" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
   </div>
 
-  <main class="chat-area" id="chatArea"></main>
+  <div class="notice" id="notice" role="alert" hidden>
+    <span id="noticeText"></span>
+    <button id="noticeClose" aria-label="بستن">✕</button>
+  </div>
 
   <footer class="composer">
-    <textarea id="userInput" placeholder="پیامت رو بنویس..." rows="1"></textarea>
-    <button id="sendBtn" class="send-btn" aria-label="ارسال">↑</button>
+    <div class="inputwrap">
+      <textarea id="input" rows="1" dir="auto" placeholder="پیام" aria-label="متن پیام" maxlength="8000"></textarea>
+    </div>
+    <button class="send" id="send" aria-label="ارسال" disabled>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 22 12 3.4 3.6 3.39 10.1 16 12 3.39 13.9z"/></svg>
+    </button>
   </footer>
+</div>
 
-  <!-- پنل آب‌وهوا -->
-  <div class="sheet-overlay" id="weatherOverlay">
-    <div class="sheet">
-      <div class="sheet-header">
-        <h2>آب و هوا</h2>
-        <button id="closeWeather" class="icon-btn" aria-label="بستن">✕</button>
-      </div>
-
-      <div class="weather-search-row">
-        <input type="text" id="citySearch" placeholder="اسم هر شهری رو بنویس (تهران، پاریس، دبی...)" />
-        <button id="citySearchBtn" class="icon-btn" aria-label="جستجو">🔍</button>
-      </div>
-
-      <div class="city-chips" id="cityChips">
-        <button class="chip" data-city="تهران">تهران</button>
-        <button class="chip" data-city="مشهد">مشهد</button>
-        <button class="chip" data-city="اصفهان">اصفهان</button>
-        <button class="chip" data-city="شیراز">شیراز</button>
-        <button class="chip" data-city="تبریز">تبریز</button>
-        <button class="chip" data-city="اهواز">اهواز</button>
-        <button class="chip" data-city="رشت">رشت</button>
-        <button class="chip" data-city="کرمان">کرمان</button>
-      </div>
-
-      <div id="weatherResult" class="weather-result"></div>
+<!-- آب‌وهوا -->
+<div class="overlay" id="weatherSheet" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="آب و هوا">
+    <div class="grab"></div>
+    <div class="sheet-head">
+      <h2>آب و هوا</h2>
+      <button class="ibtn" id="weatherClose" aria-label="بستن">✕</button>
     </div>
-  </div>
-
-  <!-- پنل تنظیمات: کلید شخصی Gemini (اختیاری) -->
-  <div class="sheet-overlay" id="settingsOverlay">
-    <div class="sheet">
-      <div class="sheet-header">
-        <h2>کلید شخصی Gemini</h2>
-        <button id="closeSettings" class="icon-btn" aria-label="بستن">✕</button>
-      </div>
-
-      <p class="hint">اختیاریه. اگه کلید خودت رو بذاری، چت با همون انجام می‌شه و سقف مصرف خودت حساب می‌شه. بدون کلید، از کلیدهای خود اپ استفاده می‌شه.</p>
-      <p class="hint">کلید رو از aistudio.google.com/apikey بگیر.</p>
-
-      <input type="password" id="userKeyInput" class="key-input" placeholder="کلید Gemini رو اینجا بذار" autocomplete="off" spellcheck="false" />
-
-      <div class="key-actions">
-        <button id="saveKeyBtn" class="primary-btn">ذخیره</button>
-        <button id="removeKeyBtn" class="ghost-btn">حذف کلید</button>
-      </div>
-
-      <p class="hint" id="keyStatus"></p>
-      <p class="hint">کلید فقط توی مرورگر خودت ذخیره می‌شه. موقع چت از سرور اپ رد می‌شه تا به Gemini برسه، ولی سرور ذخیره‌اش نمی‌کنه.</p>
+    <form class="w-search" id="cityForm" autocomplete="off">
+      <input class="field" id="cityInput" type="text" placeholder="اسم هر شهری رو بنویس (تهران، پاریس، دبی…)" aria-label="اسم شهر" maxlength="80">
+      <button class="btn primary" type="submit">جستجو</button>
+    </form>
+    <div class="chips" id="chips">
+      <button class="chip" data-city="تهران">تهران</button>
+      <button class="chip" data-city="مشهد">مشهد</button>
+      <button class="chip" data-city="اصفهان">اصفهان</button>
+      <button class="chip" data-city="شیراز">شیراز</button>
+      <button class="chip" data-city="تبریز">تبریز</button>
+      <button class="chip" data-city="اهواز">اهواز</button>
+      <button class="chip" data-city="رشت">رشت</button>
+      <button class="chip" data-city="کرمان">کرمان</button>
     </div>
+    <div id="wResult"></div>
   </div>
+</div>
 
-  <script src="app.js"></script>
+<!-- تنظیمات -->
+<div class="overlay" id="settingsSheet" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="تنظیمات">
+    <div class="grab"></div>
+    <div class="sheet-head">
+      <h2>تنظیمات</h2>
+      <button class="ibtn" id="settingsClose" aria-label="بستن">✕</button>
+    </div>
+
+    <div class="label" style="margin-top:4px">کلید شخصی Gemini (اختیاری)</div>
+    <p class="hint">اگه کلید خودت رو بذاری، چت با همون انجام می‌شه و سقف مصرف خودت حساب می‌شه. بدون کلید، از کلیدهای خود اپ استفاده می‌شه. کلید رو از aistudio.google.com/apikey بگیر.</p>
+    <input class="field ltr" id="keyInput" type="password" placeholder="کلید Gemini" autocomplete="new-password" autocapitalize="off" spellcheck="false" aria-label="کلید Gemini">
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary grow" id="keySave">ذخیره</button>
+      <button class="btn ghost grow" id="keyRemove">حذف کلید</button>
+    </div>
+    <p class="state" id="keyState"></p>
+    <p class="hint">کلید فقط توی مرورگر خودت ذخیره می‌شه. موقع چت از سرور اپ رد می‌شه تا به Gemini برسه، ولی سرور ذخیره‌اش نمی‌کنه.</p>
+
+    <div class="label">ظاهر</div>
+    <div class="seg" id="themeSeg">
+      <button data-theme-value="auto" aria-pressed="false">خودکار</button>
+      <button data-theme-value="light" aria-pressed="false">روشن</button>
+      <button data-theme-value="dark" aria-pressed="false">تیره</button>
+    </div>
+
+    <div class="label">اتصال</div>
+    <button class="btn ghost full" id="checkBtn">تست اتصال به سرور</button>
+    <p class="state" id="checkOut"></p>
+
+    <div class="label">گفتگو</div>
+    <button class="btn danger full" id="clearBtn">پاک کردن گفتگو</button>
+
+    <div class="ver" id="verLabel"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* اگه جایی از برنامه با خطا متوقف بشه، به‌جای «دکمه‌ها کار نمی‌کنن» خود خطا نشون داده می‌شه */
+(function () {
+  function show(msg) {
+    var el = document.getElementById('fatal');
+    if (!el) return;
+    el.hidden = false;
+    el.textContent = 'خطای برنامه: ' + msg;
+  }
+  window.addEventListener('error', function (e) { show(e.message || 'نامشخص'); });
+  window.addEventListener('unhandledrejection', function (e) {
+    show((e.reason && e.reason.message) || String(e.reason));
+  });
+})();
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= تنظیمات اصلی ================= */
+  var APP_VERSION = '2.0.0';
+  // آدرس Cloudflare Worker (اگه Worker جدید ساختی، فقط همین خط رو عوض کن)
+  var PROXY_URL = 'https://flat-math-35b6.mahmoodgh20471.workers.dev';
+  var REQUEST_TIMEOUT_MS = 55000;
+  var HEALTH_TIMEOUT_MS = 10000;
+  var RETRY_DELAY_MS = 700;
+  var MAX_STORED = 100;   // حداکثر پیام ذخیره‌شده
+  var MAX_SENT = 30;      // حداکثر پیامی که برای Gemini فرستاده می‌شه
+  var MAX_CHARS = 8000;
+  var KEY_PATTERN = /^[A-Za-z0-9._\-]{20,256}$/;
+  var LS = { hist: 'hub_history_v2', theme: 'hub_theme', key: 'gemini_user_key', city: 'hub_last_city' };
+
+  /* ================= ابزارها ================= */
+  function $(id) { return document.getElementById(id); }
+  var root = document.documentElement;
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* بی‌اهمیت */ } }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  var FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+  function toFa(v) { return String(v).replace(/\d/g, function (d) { return FA_DIGITS[+d]; }); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function fmtTime(ts) {
+    var d = new Date(ts);
+    return toFa(pad2(d.getHours()) + ':' + pad2(d.getMinutes()));
+  }
+  function dayKey(ts) {
+    var d = new Date(ts);
+    return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+  }
+  function fmtDay(ts) {
+    var now = Date.now();
+    if (dayKey(ts) === dayKey(now)) return 'امروز';
+    if (dayKey(ts) === dayKey(now - 86400000)) return 'دیروز';
+    try {
+      return new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ts));
+    } catch (e) {
+      return new Date(ts).toLocaleDateString();
+    }
+  }
+
+  /* ---------- پاک‌سازی بقایای نسخه‌های قبلی ---------- */
+  try {
+    ['key_anthropic', 'key_openai', 'key_google', 'lastProvider'].forEach(lsDel);
+    if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+      navigator.serviceWorker.getRegistrations()
+        .then(function (regs) { regs.forEach(function (r) { r.unregister(); }); })
+        .catch(function () {});
+    }
+    if (window.caches && caches.keys) {
+      caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }).catch(function () {});
+    }
+  } catch (e) { /* بی‌اهمیت */ }
+
+  /* ================= المان‌ها ================= */
+  var chat = $('chat'), input = $('input'), sendBtn = $('send'), statusEl = $('status');
+  var toBottom = $('toBottom'), notice = $('notice'), noticeText = $('noticeText');
+  var weatherSheet = $('weatherSheet'), settingsSheet = $('settingsSheet');
+  var cityInput = $('cityInput'), wResult = $('wResult');
+  var keyInput = $('keyInput'), keyState = $('keyState'), checkOut = $('checkOut');
+  var clearBtn = $('clearBtn'), toast = $('toast'), metaTheme = $('metaTheme');
+
+  var ICON_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+
+  /* ================= تم ================= */
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  function getThemePref() {
+    var t = lsGet(LS.theme);
+    return t === 'light' || t === 'dark' ? t : 'auto';
+  }
+  function applyTheme() {
+    var pref = getThemePref();
+    var dark = pref === 'dark' || (pref === 'auto' && !!mq && mq.matches);
+    root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    metaTheme.setAttribute('content', dark ? '#17212b' : '#ffffff');
+    var btns = document.querySelectorAll('#themeSeg button');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute('aria-pressed', btns[i].getAttribute('data-theme-value') === pref ? 'true' : 'false');
+    }
+  }
+  if (mq) {
+    if (mq.addEventListener) mq.addEventListener('change', applyTheme);
+    else if (mq.addListener) mq.addListener(applyTheme);
+  }
+
+  /* ================= مارک‌داون امن ================= */
+  // اول همه‌چیز escape می‌شه، بعد فقط چند الگوی مشخص به تگ تبدیل می‌شن
+  function renderMarkdown(src) {
+    var stash = [];
+    // جای‌نگه‌دار بلوک (E002) با جای‌نگه‌دار درون‌خطی (E001) فرق داره تا لیست/تیتر درست بعد از بلوک کد هم تشخیص داده بشه
+    function put(html, block) {
+      stash.push(html);
+      return '\uE000' + (stash.length - 1) + (block ? '\uE002' : '\uE001');
+    }
+    var s = String(src).replace(/[\uE000\uE001\uE002]/g, '').replace(/\r\n?/g, '\n');
+
+    s = s.replace(/```([\w+#.\-]*)[ \t]*\n?([\s\S]*?)```[ \t]*\n?/g, function (m, lang, code) {
+      return put('<pre dir="ltr"><code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>', true);
+    });
+    s = s.replace(/`([^`\n]+)`/g, function (m, c) { return put('<code>' + escapeHtml(c) + '</code>', false); });
+
+    s = escapeHtml(s);
+    s = s.replace(/(^|\n|\uE002)#{1,6}[ \t]+([^\n]+)/g, '$1<strong>$2</strong>');
+    s = s.replace(/(^|\n|\uE002)[ \t]*[*\-][ \t]+/g, '$1• ');
+    s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\bhttps?:\/\/(?:(?!&quot;|&#39;|&lt;|&gt;)[^\s<])+/g, function (u) {
+      var m = u.match(/[.,;:!?)\]]+$/);
+      var tail = m ? m[0] : '';
+      var url = tail ? u.slice(0, -tail.length) : u;
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>' + tail;
+    });
+    s = s.replace(/\uE000(\d+)[\uE001\uE002]/g, function (m, i) { return stash[+i] || ''; });
+    return s;
+  }
+
+  /* ================= وضعیت و ذخیره‌سازی ================= */
+  var history = loadHistory();   // [{ r: 'u' | 'a', c: string, t: number }]
+  var busy = false;
+  var typing = false;
+  var chatGen = 0;               // با «پاک کردن گفتگو» زیاد می‌شه تا جواب‌های دیررسیده نادیده گرفته بشن
+
+  function loadHistory() {
+    try {
+      var raw = lsGet(LS.hist);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr.filter(function (m) {
+        return m && (m.r === 'u' || m.r === 'a') && typeof m.c === 'string' && m.c.length > 0 &&
+               m.c.length <= 20000 && isFinite(m.t);
+      }).slice(-MAX_STORED);
+    } catch (e) { return []; }
+  }
+  function saveHistory() { lsSet(LS.hist, JSON.stringify(history.slice(-MAX_STORED))); }
+
+  // پیام‌ها رو به قالب Gemini درمیاره (شروع با کاربر، بدون دو نقش پشت‌سرهم)
+  function buildContents() {
+    var out = [];
+    history.slice(-MAX_SENT).forEach(function (m) {
+      var role = m.r === 'u' ? 'user' : 'model';
+      if (out.length === 0 && role !== 'user') return;
+      var last = out[out.length - 1];
+      if (last && last.role === role) last.parts[0].text += '\n\n' + m.c;
+      else out.push({ role: role, parts: [{ text: m.c }] });
+    });
+    return out;
+  }
+
+  /* ================= نمایش گفتگو ================= */
+  function scrollToBottom() { chat.scrollTop = chat.scrollHeight; }
+  function updateFab() {
+    toBottom.hidden = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 160;
+  }
+
+  function setTyping(v) {
+    typing = v;
+    statusEl.textContent = v ? 'در حال نوشتن…' : 'آنلاین';
+  }
+
+  function introEl() {
+    var d = document.createElement('div');
+    d.className = 'intro';
+    d.innerHTML =
+      '<div class="big" aria-hidden="true">✦</div>' +
+      '<h2>سلام! من Gemini هستم</h2>' +
+      '<p>هر سوالی داری بپرس. می‌تونی با دکمه‌ی ابر بالای صفحه، آب‌وهوای هر شهری رو هم ببینی.</p>' +
+      '<div class="sugg">' +
+        '<button data-sugg="یه داستان کوتاه و جذاب برام بگو">یه داستان کوتاه بگو</button>' +
+        '<button data-sugg="مزایا و معایب یادگرفتن برنامه‌نویسی رو توضیح بده">مزایا و معایب برنامه‌نویسی</button>' +
+        '<button data-sugg="برای یک روز در تهران چه برنامه‌ای پیشنهاد می‌کنی؟">برنامه‌ی یک روز در تهران</button>' +
+      '</div>';
+    return d;
+  }
+
+  function msgEl(m, i) {
+    var prev = history[i - 1], next = history[i + 1];
+    var el = document.createElement('div');
+    el.className = 'msg ' + (m.r === 'u' ? 'out' : 'in') +
+      (!next || next.r !== m.r ? ' tail' : '') + (!prev || prev.r !== m.r ? ' first' : '');
+
+    var text = document.createElement('div');
+    text.className = 'text';
+    text.setAttribute('dir', 'auto');
+    if (m.r === 'u') text.textContent = m.c;
+    else text.innerHTML = renderMarkdown(m.c);
+    el.appendChild(text);
+
+    var meta = document.createElement('div');
+    meta.className = 'meta';
+    if (m.r === 'a') {
+      var cp = document.createElement('button');
+      cp.className = 'copy';
+      cp.setAttribute('data-copy', String(i));
+      cp.setAttribute('aria-label', 'کپی پیام');
+      cp.innerHTML = ICON_COPY;
+      meta.appendChild(cp);
+    }
+    var time = document.createElement('span');
+    time.textContent = fmtTime(m.t);
+    meta.appendChild(time);
+    if (m.r === 'u') {
+      var ticks = document.createElement('span');
+      ticks.className = 'ticks';
+      ticks.textContent = next && next.r === 'a' ? '✓✓' : '✓';
+      meta.appendChild(ticks);
+    }
+    el.appendChild(meta);
+    return el;
+  }
+
+  function render() {
+    chat.textContent = '';
+    if (history.length === 0 && !typing) {
+      chat.appendChild(introEl());
+      updateFab();
+      return;
+    }
+    var lastDay = '';
+    history.forEach(function (m, i) {
+      var dk = dayKey(m.t);
+      if (dk !== lastDay) {
+        var chip = document.createElement('div');
+        chip.className = 'day';
+        chip.textContent = fmtDay(m.t);
+        chat.appendChild(chip);
+        lastDay = dk;
+      }
+      chat.appendChild(msgEl(m, i));
+    });
+    if (typing) {
+      var t = document.createElement('div');
+      t.className = 'msg in tail first';
+      t.setAttribute('aria-label', 'Gemini در حال نوشتن است');
+      t.innerHTML = '<div class="dots"><i></i><i></i><i></i></div>';
+      chat.appendChild(t);
+    }
+    scrollToBottom();
+    updateFab();
+  }
+
+  /* ================= اعلان و پیام کوتاه ================= */
+  var noticeTimer = null, toastTimer = null;
+  function showNotice(msg) {
+    noticeText.textContent = msg;
+    notice.hidden = false;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(hideNotice, 15000);
+  }
+  function hideNotice() { notice.hidden = true; clearTimeout(noticeTimer); }
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
+  }
+
+  /* ================= ارتباط با سرور ================= */
+  function getUserKey() { return (lsGet(LS.key) || '').trim(); }
+
+  async function postOnce(route, body) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, REQUEST_TIMEOUT_MS);
+    try {
+      var res;
+      try {
+        res = await fetch(PROXY_URL + '/proxy/' + route, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: ctrl.signal
+        });
+      } catch (e) {
+        var aborted = !!e && e.name === 'AbortError';
+        var err = new Error(aborted ? 'سرور دیر جواب داد. دوباره امتحان کن.'
+                                    : 'اتصال به سرور برقرار نشد. اینترنت (یا فیلترشکن) رو چک کن.');
+        err.network = !aborted;   // فقط قطع‌شدن اتصال دوباره تلاش می‌شه، نه تایم‌اوت
+        throw err;
+      }
+      var data = null;
+      try { data = await res.json(); } catch (e) { /* جواب JSON نبود */ }
+      if (!res.ok) {
+        var d = data && data.error;
+        if (d && typeof d === 'object') d = d.message || '';
+        throw new Error(d || ('خطای سرور (' + res.status + ')'));
+      }
+      if (!data) throw new Error('جواب سرور قابل خوندن نبود.');
+      return data;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function callProxy(route, payload) {
+    var body = { payload: payload };
+    if (route === 'google') {
+      var k = getUserKey();
+      if (k) body.userKey = k;
+    }
+    var lastErr;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await postOnce(route, body);
+      } catch (e) {
+        if (!e.network) throw e;
+        lastErr = e;
+        if (attempt === 0) await sleep(RETRY_DELAY_MS);
+      }
+    }
+    throw lastErr;
+  }
+
+  function pickReply(data) {
+    if (data && typeof data.reply === 'string' && data.reply) return data.reply;
+    var c = data && data.candidates && data.candidates[0];
+    var parts = c && c.content && c.content.parts;
+    if (parts && parts.length) {
+      var t = parts.map(function (p) { return (p && p.text) || ''; }).join('');
+      if (t) return t;
+    }
+    throw new Error('Gemini جوابی برنگردوند.');
+  }
+
+  /* ================= ارسال پیام ================= */
+  function autosize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+  }
+  function updateSendBtn() { sendBtn.disabled = busy || !input.value.trim(); }
+
+  async function send() {
+    if (busy) return;
+    var text = input.value.trim();
+    if (!text) return;
+    if (text.length > MAX_CHARS) { showNotice('پیام خیلی بلنده (حداکثر ' + toFa(MAX_CHARS) + ' کاراکتر).'); return; }
+
+    hideNotice();
+    busy = true;
+    var gen = chatGen;
+    var userMsg = { r: 'u', c: text, t: Date.now() };
+    history.push(userMsg);
+    input.value = '';
+    autosize();
+    setTyping(true);
+    updateSendBtn();
+    render();
+
+    try {
+      var data = await callProxy('google', { contents: buildContents() });
+      var reply = pickReply(data);
+      if (gen === chatGen) {
+        history.push({ r: 'a', c: reply, t: Date.now() });
+        saveHistory();
+      }
+    } catch (err) {
+      if (gen === chatGen) {
+        var idx = history.lastIndexOf(userMsg);
+        if (idx >= 0) history.splice(idx, 1);
+        // متن پیام برمی‌گرده توی کادر تا دوباره بفرستی
+        input.value = input.value ? text + '\n' + input.value : text;
+        autosize();
+        showNotice(err.message);
+      }
+    } finally {
+      busy = false;
+      setTyping(false);
+      updateSendBtn();
+      render();
+    }
+  }
+
+  sendBtn.addEventListener('click', send);
+  var coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  input.addEventListener('keydown', function (e) {
+    // روی موبایل Enter خط جدید می‌زنه؛ روی کامپیوتر Enter ارسال می‌کنه
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !coarse) {
+      e.preventDefault();
+      send();
+    }
+  });
+  input.addEventListener('input', function () { autosize(); updateSendBtn(); });
+
+  chat.addEventListener('scroll', updateFab);
+  toBottom.addEventListener('click', scrollToBottom);
+  $('noticeClose').addEventListener('click', hideNotice);
+
+  chat.addEventListener('click', function (e) {
+    var cp = e.target.closest ? e.target.closest('.copy') : null;
+    if (cp) {
+      var m = history[+cp.getAttribute('data-copy')];
+      if (m) copyText(m.c).then(function (ok) { showToast(ok ? 'کپی شد' : 'کپی نشد'); });
+      return;
+    }
+    var sg = e.target.closest ? e.target.closest('[data-sugg]') : null;
+    if (sg) {
+      input.value = sg.getAttribute('data-sugg');
+      autosize(); updateSendBtn(); input.focus();
+    }
+  });
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) { /* می‌ریم سراغ روش دوم */ }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  /* ================= پنل‌های کشویی ================= */
+  function openSheet(sheet) { sheet.classList.add('open'); sheet.setAttribute('aria-hidden', 'false'); }
+  function closeSheet(sheet) { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true'); }
+  [weatherSheet, settingsSheet].forEach(function (s) {
+    s.addEventListener('click', function (e) { if (e.target === s) closeSheet(s); });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeSheet(weatherSheet); closeSheet(settingsSheet); }
+  });
+  $('weatherClose').addEventListener('click', function () { closeSheet(weatherSheet); });
+  $('settingsClose').addEventListener('click', function () { closeSheet(settingsSheet); });
+
+  /* ================= آب‌وهوا ================= */
+  var WEATHER_CODES = {
+    0:  ['آسمان صاف', '☀️', '🌙'],      1:  ['تقریباً صاف', '🌤️', '🌙'],
+    2:  ['نیمه‌ابری', '⛅', '☁️'],        3:  ['ابری', '☁️', '☁️'],
+    45: ['مه', '🌫️', '🌫️'],            48: ['مه یخ‌زده', '🌫️', '🌫️'],
+    51: ['نم‌نم باران', '🌦️', '🌧️'],    53: ['نم‌نم باران', '🌦️', '🌧️'],
+    55: ['نم‌نم شدید', '🌧️', '🌧️'],      56: ['نم‌نم یخ‌زده', '🌧️', '🌧️'],
+    57: ['نم‌نم یخ‌زده', '🌧️', '🌧️'],    61: ['باران سبک', '🌦️', '🌧️'],
+    63: ['باران', '🌧️', '🌧️'],          65: ['باران شدید', '🌧️', '🌧️'],
+    66: ['باران یخ‌زده', '🌧️', '🌧️'],    67: ['باران یخ‌زده شدید', '🌧️', '🌧️'],
+    71: ['برف سبک', '🌨️', '🌨️'],       73: ['برف', '❄️', '❄️'],
+    75: ['برف شدید', '❄️', '❄️'],       77: ['دانه‌های برف', '🌨️', '🌨️'],
+    80: ['رگبار سبک', '🌦️', '🌧️'],      81: ['رگبار', '🌧️', '🌧️'],
+    82: ['رگبار شدید', '⛈️', '⛈️'],      85: ['بارش برف', '🌨️', '🌨️'],
+    86: ['بارش برف شدید', '❄️', '❄️'],  95: ['رعدوبرق', '⛈️', '⛈️'],
+    96: ['رعدوبرق با تگرگ', '⛈️', '⛈️'], 99: ['رعدوبرق شدید با تگرگ', '⛈️', '⛈️']
+  };
+  function describeWeather(code, isDay) {
+    var e = WEATHER_CODES[code] || ['نامشخص', '🌡️', '🌡️'];
+    return { label: e[0], icon: isDay ? e[1] : e[2] };
+  }
+  function num(v) { return typeof v === 'number' && isFinite(v) ? toFa(Math.round(v)) : '—'; }
+
+  function renderWeather(d) {
+    var c = d && d.current;
+    if (!c || typeof c.temperature_2m !== 'number' || !isFinite(c.temperature_2m)) {
+      throw new Error('اطلاعات آب‌وهوا کامل نبود.');
+    }
+    var info = describeWeather(c.weather_code, c.is_day === 1);
+    var p = d.place || {};
+    var name = [p.name, p.admin1, p.country].filter(Boolean).join('، ');
+    var hasRange = typeof d.max === 'number' && typeof d.min === 'number';
+    wResult.innerHTML =
+      '<div class="w-card">' +
+        '<div class="w-city">' + escapeHtml(name) + '</div>' +
+        '<div class="w-icon" aria-hidden="true">' + info.icon + '</div>' +
+        '<div class="w-temp">' + num(c.temperature_2m) + '°C</div>' +
+        '<div class="w-cond">' + escapeHtml(info.label) + '</div>' +
+        (hasRange ? '<div class="w-range">↑ ' + num(d.max) + '°  ↓ ' + num(d.min) + '°</div>' : '') +
+        '<div class="w-meta"><span>💧 رطوبت ' + num(c.relative_humidity_2m) + '٪</span>' +
+        '<span>💨 باد ' + num(c.wind_speed_10m) + ' km/h</span></div>' +
+      '</div>';
+  }
+
+  var weatherSeq = 0;
+  async function loadWeather(city) {
+    city = String(city || '').trim();
+    if (!city) return;
+    var my = ++weatherSeq;   // اگه کاربر سریع شهر عوض کنه، فقط آخرین جواب نمایش داده می‌شه
+    wResult.innerHTML = '<div class="w-state">در حال دریافت…</div>';
+    try {
+      var data = await callProxy('weather', { city: city });
+      if (my !== weatherSeq) return;
+      renderWeather(data);
+      lsSet(LS.city, city);
+    } catch (err) {
+      if (my !== weatherSeq) return;
+      wResult.innerHTML = '<div class="w-state err">' + escapeHtml(err.message) + '</div>';
+    }
+  }
+
+  $('weatherBtn').addEventListener('click', function () {
+    openSheet(weatherSheet);
+    var last = lsGet(LS.city);
+    if (last && !wResult.firstChild) { cityInput.value = last; loadWeather(last); }
+  });
+  $('chips').addEventListener('click', function (e) {
+    var chip = e.target.closest ? e.target.closest('.chip') : null;
+    if (!chip) return;
+    var city = chip.getAttribute('data-city');
+    cityInput.value = city;
+    loadWeather(city);
+  });
+  $('cityForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    loadWeather(cityInput.value);
+  });
+
+  /* ================= تنظیمات ================= */
+  function updateKeyState(extra) {
+    var k = getUserKey();
+    keyState.className = 'state' + (extra && extra.err ? ' err' : (k ? ' ok' : ''));
+    keyState.textContent = extra && extra.msg ? extra.msg
+      : (k ? 'کلید شخصی فعاله (••••' + k.slice(-4) + ')' : 'الان از کلیدهای خود اپ استفاده می‌شه.');
+  }
+
+  $('menuBtn').addEventListener('click', function () {
+    keyInput.value = '';
+    checkOut.textContent = '';
+    resetClear();
+    updateKeyState();
+    applyTheme();
+    openSheet(settingsSheet);
+  });
+
+  $('keySave').addEventListener('click', function () {
+    var k = keyInput.value.trim();
+    if (!k) { updateKeyState({ err: true, msg: 'اول کلید رو وارد کن.' }); return; }
+    if (!KEY_PATTERN.test(k)) { updateKeyState({ err: true, msg: 'فرمت کلید درست نیست. دوباره از Google AI Studio کپی کن.' }); return; }
+    if (!lsSet(LS.key, k)) { updateKeyState({ err: true, msg: 'ذخیره‌ی کلید توی این مرورگر ممکن نشد.' }); return; }
+    keyInput.value = '';
+    updateKeyState();
+    showToast('کلید ذخیره شد');
+  });
+  $('keyRemove').addEventListener('click', function () {
+    lsDel(LS.key);
+    keyInput.value = '';
+    updateKeyState();
+  });
+
+  $('themeSeg').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button') : null;
+    if (!b) return;
+    lsSet(LS.theme, b.getAttribute('data-theme-value'));
+    applyTheme();
+  });
+
+  async function checkServer() {
+    checkOut.className = 'state';
+    checkOut.textContent = 'در حال بررسی…';
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, HEALTH_TIMEOUT_MS);
+    try {
+      var res = await fetch(PROXY_URL + '/health', { signal: ctrl.signal });
+      if (res.status === 405) {
+        checkOut.className = 'state err';
+        checkOut.textContent = 'سرور جواب می‌ده ولی Worker هنوز نسخه‌ی قدیمیه. کد جدید cloudflare-worker.js رو Deploy کن.';
+        return;
+      }
+      var d = null;
+      try { d = await res.json(); } catch (e) { /* بدون JSON */ }
+      if (res.ok && d && d.ok) {
+        var n = typeof d.geminiKeys === 'number' ? d.geminiKeys : 0;
+        checkOut.className = n > 0 ? 'state ok' : 'state err';
+        checkOut.textContent = 'سرور وصله ✓ (نسخه‌ی Worker: ' + d.version + ') · تعداد کلید اپ: ' + toFa(n) +
+          (n === 0 ? ' — هنوز هیچ Secretـی تعریف نشده.' : '');
+      } else {
+        checkOut.className = 'state err';
+        checkOut.textContent = 'جواب غیرمنتظره از سرور (' + res.status + ').';
+      }
+    } catch (e) {
+      checkOut.className = 'state err';
+      checkOut.textContent = e && e.name === 'AbortError'
+        ? 'سرور جواب نداد (تایم‌اوت). فیلترشکن یا اینترنت رو چک کن.'
+        : 'به سرور وصل نشد. فیلترشکن یا اینترنت رو چک کن.';
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  $('checkBtn').addEventListener('click', checkServer);
+
+  var clearArmed = false, clearTimer = null;
+  function resetClear() {
+    clearArmed = false;
+    clearTimeout(clearTimer);
+    clearBtn.textContent = 'پاک کردن گفتگو';
+  }
+  clearBtn.addEventListener('click', function () {
+    if (!clearArmed) {
+      clearArmed = true;
+      clearBtn.textContent = 'مطمئنی؟ یک بار دیگه بزن';
+      clearTimer = setTimeout(resetClear, 4000);
+      return;
+    }
+    resetClear();
+    chatGen++;
+    history = [];
+    lsDel(LS.hist);
+    render();
+    closeSheet(settingsSheet);
+    showToast('گفتگو پاک شد');
+  });
+
+  $('verLabel').textContent = 'v' + APP_VERSION;
+
+  /* ================= iOS: هم‌اندازه شدن با کیبورد ================= */
+  if (window.visualViewport) {
+    var appEl = $('app');
+    var fit = function () {
+      appEl.style.height = window.visualViewport.height + 'px';
+      window.scrollTo(0, 0);
+      if (document.activeElement === input) scrollToBottom();
+    };
+    window.visualViewport.addEventListener('resize', fit);
+    window.visualViewport.addEventListener('scroll', function () { window.scrollTo(0, 0); });
+  }
+
+  /* ================= شروع ================= */
+  applyTheme();
+  setTyping(false);
+  render();
+  updateSendBtn();
+})();
+</script>
 </body>
 </html>
